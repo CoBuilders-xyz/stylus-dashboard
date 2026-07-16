@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+
+name: stylus-dashboard-indexer
+description: Indexes Stylus ecosystem metrics on Arbitrum
+
+contracts:
+  - name: ArbWasm
+    abi_file_path: ./abis/ArbWasm.json
+    handler: src/EventHandlers.ts
+    events:
+      - event: "ProgramActivated(bytes32 indexed codehash, bytes32 moduleHash, address program, uint256 dataFee, uint16 version)"
+      - event: "ProgramLifetimeExtended(bytes32 indexed codehash, uint256 dataFee)"
+
+  - name: ArbWasmCache
+    abi_file_path: ./abis/ArbWasmCache.json
+    handler: src/EventHandlers.ts
+    events:
+      - event: "UpdateProgramCache(address indexed manager, bytes32 indexed codehash, bool cached)"
+
+networks:
+  - id: 42161 # Arbitrum One
+    start_block: 0
+    contracts:
+      - name: ArbWasm
+        address: "0x0000000000000000000000000000000000000071"
+      - name: ArbWasmCache
+        address: "0x0000000000000000000000000000000000000072"

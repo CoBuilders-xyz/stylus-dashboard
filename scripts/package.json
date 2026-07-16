@@ -1,0 +1,17 @@
+{
+  "name": "@stylus-dashboard/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "tsx seed.ts"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "@types/node": "^20.14.0",
+    "typescript": "^5.7.0"
+  }
+}

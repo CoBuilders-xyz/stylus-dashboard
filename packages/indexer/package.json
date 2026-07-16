@@ -1,0 +1,26 @@
+{
+  "name": "@stylus-dashboard/indexer",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "codegen": "envio codegen",
+    "dev": "envio dev",
+    "start": "envio start",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "typecheck:full": "envio codegen && tsc --noEmit --project tsconfig.full.json",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "envio": "^3.0.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^20.14.0",
+    "eslint": "^9.39.5",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.64.0",
+    "vitest": "^2.1.0"
+  }
+}

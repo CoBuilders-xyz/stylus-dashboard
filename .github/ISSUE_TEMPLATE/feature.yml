@@ -1,0 +1,52 @@
+name: Feature Request
+description: Propose a new feature or enhancement for the dashboard
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please fill out the sections below.
+
+  - type: dropdown
+    id: section
+    attributes:
+      label: Dashboard Section
+      description: Which section of the dashboard does this relate to?
+      options:
+        - Adoption Overview
+        - Contract Activity
+        - Builder Metrics
+        - Stylus Health
+        - Stylus vs Solidity
+        - Indexer
+        - Infrastructure / CI
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the feature you'd like to see
+      placeholder: "I'd like to add a chart showing..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: data-source
+    attributes:
+      label: Data Source
+      description: Where does the data for this feature come from?
+      placeholder: "This data comes from the ProgramActivated event on ArbWasm (0x71)..."
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: How will we know this feature is complete?
+      placeholder: |
+        - [ ] Chart renders with real data
+        - [ ] Loading state shown while fetching
+        - [ ] Error state handled

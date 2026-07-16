@@ -1,0 +1,64 @@
+"A Stylus contract that has been activated via ArbWasm"
+type StylusContract @entity {
+  id: ID!
+  "Wallet address that sent the activation transaction"
+  deployer: String! @index
+  "Keccak256 hash of the WASM bytecode"
+  codehash: String! @index
+  "Hash of the compiled native module"
+  moduleHash: String!
+  "Stylus version the program was compiled against"
+  version: Int!
+  "Data fee paid for activation (in wei)"
+  dataFee: BigInt!
+  "Block timestamp when activated"
+  activatedAt: Int!
+  "Block number when activated"
+  activatedBlock: Int!
+  "Chain ID where this contract lives"
+  chainId: Int!
+  "Whether the contract is currently in the WASM cache"
+  isCached: Boolean!
+  "Timestamp of the most recent keepalive/reactivation"
+  lastKeepalive: Int
+  "Estimated expiration timestamp (activatedAt + 365 days by default)"
+  expiresAt: Int
+}
+
+"A lifetime extension (keepalive) event for a Stylus program"
+type LifetimeExtension @entity {
+  id: ID!
+  codehash: String! @index
+  dataFee: BigInt!
+  timestamp: Int!
+  blockNumber: Int!
+}
+
+"A cache update event from ArbWasmCache"
+type CacheEvent @entity {
+  id: ID!
+  manager: String! @index
+  codehash: String! @index
+  "True if program was cached, false if evicted"
+  cached: Boolean!
+  timestamp: Int!
+  blockNumber: Int!
+}
+
+"Aggregated daily statistics for Stylus ecosystem"
+type DailyStats @entity {
+  "Format: YYYY-MM-DD"
+  id: ID!
+  "Unix timestamp for the start of this day (00:00 UTC)"
+  date: Int!
+  "Number of new Stylus activations on this day"
+  stylusActivations: Int!
+  "Number of reactivations/keepalives on this day"
+  stylusReactivations: Int!
+  "Number of unique deployer addresses on this day"
+  uniqueDeployers: Int!
+  "Cumulative total of Stylus contracts up to this day"
+  totalStylusContracts: Int!
+  "Number of cache events on this day"
+  cacheEvents: Int!
+}
