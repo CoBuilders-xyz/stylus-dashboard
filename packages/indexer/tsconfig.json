@@ -11,6 +11,6 @@
     "outDir": "./dist",
     "declaration": true
   },
-  "include": ["src/helpers/**/*", "test/**/*"],
-  "exclude": ["node_modules", "dist", "generated", ".envio"]
+  "include": ["src/helpers/**/*", "test/**/*", ".envio/types.d.ts"],
+  "exclude": ["node_modules", "dist"]
 }

@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.json",
-  "include": ["src/**/*", "test/**/*"],
-  "exclude": ["node_modules", "dist", "generated", ".envio"]
+  "include": ["src/**/*", "test/**/*", ".envio/types.d.ts"],
+  "exclude": ["node_modules", "dist"]
 }

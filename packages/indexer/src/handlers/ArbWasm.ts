@@ -1,5 +1,5 @@
 import { indexer } from 'envio';
-import { getDayId, getDayStartTimestamp, EXPIRY_SECONDS } from './helpers/stats';
+import { getDayId, getDayStartTimestamp, EXPIRY_SECONDS } from '../helpers/stats.js';
 
 // --- ArbWasm: ProgramActivated ---
 indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ event, context }) => {
@@ -10,10 +10,10 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
 
   context.StylusContract.set({
     id: program.toLowerCase(),
-    deployer: event.transaction.from.toLowerCase(),
+    deployer: event.transaction.from!.toLowerCase(),
     codehash: codehash,
     moduleHash: moduleHash,
-    version: version,
+    version: Number(version),
     dataFee: dataFee,
     activatedAt: timestamp,
     activatedBlock: blockNumber,

@@ -77,24 +77,34 @@ cp packages/indexer/.env.example packages/indexer/.env
 ### Local Development
 
 ```bash
-# 1. Start infrastructure (PostgreSQL + Hasura)
-docker compose up -d
-
-# 2. Start the Arbitrum testnode (in a separate terminal)
+# 1. Start the Arbitrum testnode (in a separate terminal)
 # Assumes nitro-testnode is cloned at ../nitro-testnode
 cd ../nitro-testnode && ./test-node.bash --init --stylus
 
-# 3. Start the indexer
+# 2. Start the indexer (auto-manages PostgreSQL on :5433 + Hasura on :8080)
 cd packages/indexer
 pnpm dev
+# GraphQL available at http://localhost:8080
 
-# 4. (Optional) Seed test data
-pnpm seed
-
-# 5. Start the frontend
+# 3. Start the frontend (in another terminal)
 cd apps/web
 pnpm dev
 # Open http://localhost:3000
+```
+
+#### Indexing Arbitrum One (mainnet)
+
+```bash
+# 1. Get a free API token at https://envio.dev/app/api-tokens
+# 2. Add it to packages/indexer/.env
+echo "ENVIO_API_TOKEN=your-token" > packages/indexer/.env
+
+# 3. Switch config to Arbitrum One
+cd packages/indexer
+cp config.arbitrum-one.yaml config.yaml
+
+# 4. Run with reset flag (fresh DB)
+pnpm dev -- -r
 ```
 
 ### Running Tests
@@ -127,10 +137,12 @@ stylus-dashboard/
 │           ├── lib/            # GraphQL client, utils
 │           └── types/          # TypeScript interfaces
 ├── packages/
-│   └── indexer/                # Envio HyperIndex
-│       ├── config.yaml         # Contracts & events config
+│   └── indexer/                # Envio HyperIndex v3
+│       ├── config.yaml         # Contracts & events config (testnode)
+│       ├── config.arbitrum-one.yaml  # Mainnet config (HyperSync)
 │       ├── schema.graphql      # Entity definitions
-│       ├── src/                # Event handler logic
+│       ├── src/handlers/       # Event handlers (auto-registered)
+│       ├── src/helpers/        # Utility functions
 │       └── abis/               # Contract ABIs
 ├── .github/                    # CI workflows + templates
 ├── docker-compose.yml          # Local dev infrastructure
