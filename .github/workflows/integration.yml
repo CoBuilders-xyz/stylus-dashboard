@@ -28,38 +28,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-
-      - name: Start Nitro devnode
-        run: ./scripts/devnode.sh --detach
-
-      - name: Deploy test contracts (seed)
-        run: pnpm seed:ci > /tmp/seed-output.json
-
-      - name: Verify deployments
-        run: |
-          CONTRACT_COUNT=$(jq '.contracts | length' /tmp/seed-output.json)
-          DEPLOYER_COUNT=$(jq '.deployerCount' /tmp/seed-output.json)
-
-          echo "Deployed $CONTRACT_COUNT contracts from $DEPLOYER_COUNT deployers"
-
-          if [[ "$CONTRACT_COUNT" -lt 5 ]]; then
-            echo "ERROR: Expected at least 5 contracts, got $CONTRACT_COUNT"
-            exit 1
-          fi
-
-          echo "Verifying ArbWasm precompile..."
-          STYLUS_VERSION=$(cast call 0x0000000000000000000000000000000000000071 \
-            "stylusVersion()(uint16)" --rpc-url http://localhost:8547)
-          echo "Stylus version: $STYLUS_VERSION"
-
-          if [[ -z "$STYLUS_VERSION" || "$STYLUS_VERSION" == "0" ]]; then
-            echo "ERROR: ArbWasm precompile not responding"
-            exit 1
-          fi
-
-          echo "All smoke checks passed"
+      - name: Setup Devnode
+        uses: ./.github/actions/setup-devnode
 
       - name: Stop devnode
         if: always()

@@ -1,0 +1,30 @@
+name: "Setup Nitro Devnode"
+description: "Starts an Arbitrum Nitro devnode with ArbWasm precompiles and Cache Manager"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Foundry
+      uses: foundry-rs/foundry-toolchain@v1
+
+    - name: Start Nitro devnode
+      shell: bash
+      run: ./scripts/devnode.sh --detach
+
+    - name: Verify devnode is ready
+      shell: bash
+      run: |
+        echo "Verifying ArbWasm precompile..."
+        STYLUS_VERSION=$(cast call 0x0000000000000000000000000000000000000071 \
+          "stylusVersion()(uint16)" --rpc-url http://localhost:8547)
+        echo "Stylus version: $STYLUS_VERSION"
+
+        if [[ -z "$STYLUS_VERSION" || "$STYLUS_VERSION" == "0" ]]; then
+          echo "ERROR: ArbWasm precompile not responding"
+          exit 1
+        fi
+
+        CHAIN_ID=$(cast chain-id --rpc-url http://localhost:8547)
+        echo "Chain ID: $CHAIN_ID"
+
+        echo "Devnode ready for tests"
