@@ -66,7 +66,7 @@ Key entities today:
 
 ### 1. Pick an Issue
 
-All work is tracked in `ISSUES.md` (and will be mirrored to GitHub Issues). Issues are ordered chronologically — pick the next available one in your area that isn't blocked.
+All work is tracked in [GitHub Issues](https://github.com/CoBuilders-xyz/stylus-dashboard/issues). Issues are organized in sprints and ordered chronologically — pick the next available one in your area that isn't blocked or assigned.
 
 **Labels by area:**
 
@@ -210,21 +210,30 @@ If your IDE shows type errors in handler files after a fresh clone, run `pnpm in
 
 ## Running the Testnode
 
-For integration testing, you need a Nitro devnode:
+For local development and integration testing, use the devnode script:
 
 ```bash
-docker run -d --name nitro-devnode \
-  -p 8547:8547 -p 8548:8548 \
-  offchainlabs/nitro-node:latest \
-  --node.dangerous.no-l1-listener \
-  --init.dev-init \
-  --init.dev-init-address "0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E" \
-  --node.sequencer \
-  --node.dangerous.no-sequencer-coordinator \
-  --node.staker.enable=false \
-  --http.addr 0.0.0.0 \
-  --http.api eth,net,web3,arb,debug
+# Start in foreground (Ctrl-C to stop)
+./scripts/devnode.sh
+
+# Start in background
+./scripts/devnode.sh --detach
+
+# Stop background devnode
+docker stop nitro-devnode
 ```
+
+This starts a Nitro node in `--dev` mode, configures chain ownership, and deploys the Cache Manager contract. Once ready you'll see:
+
+```
+=== Nitro Devnode Ready ===
+  RPC:            http://127.0.0.1:8547
+  Chain ID:       412346
+  Stylus version: 3
+  Cache Manager:  0x...
+```
+
+**Prerequisites:** Docker and [Foundry](https://book.getfoundry.sh/getting-started/installation) (`cast` is used for contract deployment during setup).
 
 The devnode includes ArbWasm (0x71) and ArbWasmCache (0x72) precompiles. To seed it with activity, run `pnpm seed` (requires `cargo-stylus` for Stylus deployments, or runs EVM-only mode without it).
 
