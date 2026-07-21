@@ -1,13 +1,11 @@
 # yaml-language-server: $schema=./node_modules/envio/evm.schema.json
 #
-# Arbitrum One mainnet configuration (uses HyperSync for fast historical sync)
-# Requires: ENVIO_API_TOKEN environment variable
-# Get your free token at: https://envio.dev/app/api-tokens
-#
-# Usage: cp config.arbitrum-one.yaml config.yaml && envio dev -r
+# Default: Local Arbitrum testnode
+# For Arbitrum One mainnet, use: cp config.arbitrum-one.yaml config.yaml
+# (requires ENVIO_API_TOKEN - get free at https://envio.dev/app/api-tokens)
 
 name: stylus-dashboard-indexer
-description: Indexes Stylus ecosystem metrics on Arbitrum One
+description: Indexes Stylus ecosystem metrics on Arbitrum
 
 field_selection:
   transaction_fields:
@@ -27,8 +25,11 @@ contracts:
       - event: "UpdateProgramCache(address indexed manager, bytes32 indexed codehash, bool cached)"
 
 chains:
-  - id: 42161 # Arbitrum One (HyperSync supported natively)
-    start_block: 240000000 # ArbOS 30 / Stylus activation ~August 2024
+  - id: 412346 # Arbitrum testnode L2
+    rpc:
+      - url: http://localhost:8547
+        for: sync
+    start_block: 0
     contracts:
       - name: ArbWasm
         address: "0x0000000000000000000000000000000000000071"
