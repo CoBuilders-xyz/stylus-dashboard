@@ -1,6 +1,5 @@
 name: Feature
 description: New feature or task
-title: ""
 labels: []
 body:
   - type: textarea
