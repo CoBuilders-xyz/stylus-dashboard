@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+#
+# Default: Local Arbitrum testnode
+# For Arbitrum One mainnet, use: cp config.arbitrum-one.yaml config.yaml
+# (requires ENVIO_API_TOKEN - get free at https://envio.dev/app/api-tokens)
+
+name: stylus-dashboard-indexer
+description: Indexes Stylus ecosystem metrics on Arbitrum
+
+field_selection:
+  transaction_fields:
+    - from
+    - hash
+
+contracts:
+  - name: ArbWasm
+    abi_file_path: ./abis/ArbWasm.json
+    events:
+      - event: "ProgramActivated(bytes32 indexed codehash, bytes32 moduleHash, address program, uint256 dataFee, uint16 version)"
+      - event: "ProgramLifetimeExtended(bytes32 indexed codehash, uint256 dataFee)"
+
+  - name: ArbWasmCache
+    abi_file_path: ./abis/ArbWasmCache.json
+    events:
+      - event: "UpdateProgramCache(address indexed manager, bytes32 indexed codehash, bool cached)"
+
+chains:
+  - id: 412346 # Arbitrum testnode L2
+    rpc:
+      - url: http://localhost:8547
+        for: sync
+    start_block: 0
+    contracts:
+      - name: ArbWasm
+        address: "0x0000000000000000000000000000000000000071"
+      - name: ArbWasmCache
+        address: "0x0000000000000000000000000000000000000072"
