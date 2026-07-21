@@ -9,7 +9,8 @@
     "test": "pnpm -r test",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yaml,yml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,yaml,yml}\"",
-    "seed": "pnpm --filter @stylus-dashboard/scripts seed"
+    "seed": "pnpm --filter @stylus-dashboard/scripts seed",
+    "seed:ci": "pnpm --filter @stylus-dashboard/scripts seed:ci"
   },
   "devDependencies": {
     "prettier": "^3.3.0"
