@@ -14,13 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
+      - uses: pnpm/action-setup@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version-file: ".nvmrc"
           cache: "pnpm"
@@ -29,8 +27,6 @@ jobs:
 
       - run: pnpm build
 
-      # Railway deployment via their GitHub integration
-      # Configure RAILWAY_TOKEN in repository secrets
       - name: Deploy to Railway
         if: env.RAILWAY_TOKEN != ''
         env:

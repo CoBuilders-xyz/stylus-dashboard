@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "seed": "tsx seed.ts"
+    "seed": "tsx seed.ts",
+    "seed:ci": "tsx seed-ci.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "viem": "^2.21.0"

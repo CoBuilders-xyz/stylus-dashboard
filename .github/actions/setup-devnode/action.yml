@@ -1,0 +1,52 @@
+name: "Setup Nitro Devnode"
+description: "Starts an Arbitrum Nitro devnode with ArbWasm precompiles and Cache Manager"
+
+inputs:
+  nitro-version:
+    description: "Nitro node Docker image tag"
+    required: false
+    default: "v3.11.2-3599aca"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Foundry
+      uses: foundry-rs/foundry-toolchain@v1
+
+    - name: Cache Docker image
+      id: cache-docker
+      uses: actions/cache@v5
+      with:
+        path: /tmp/nitro-node.tar
+        key: nitro-node-${{ inputs.nitro-version }}
+
+    - name: Pull and save Docker image
+      if: steps.cache-docker.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        docker pull offchainlabs/nitro-node:${{ inputs.nitro-version }}
+        docker save offchainlabs/nitro-node:${{ inputs.nitro-version }} -o /tmp/nitro-node.tar
+
+    - name: Load Docker image from cache
+      if: steps.cache-docker.outputs.cache-hit == 'true'
+      shell: bash
+      run: docker load -i /tmp/nitro-node.tar
+
+    - name: Start Nitro devnode
+      shell: bash
+      env:
+        NITRO_NODE_VERSION: ${{ inputs.nitro-version }}
+      run: ./scripts/devnode.sh --detach
+
+    - name: Verify devnode is ready
+      shell: bash
+      run: |
+        STYLUS_VERSION=$(cast call 0x0000000000000000000000000000000000000071 \
+          "stylusVersion()(uint16)" --rpc-url http://localhost:8547)
+        CHAIN_ID=$(cast chain-id --rpc-url http://localhost:8547)
+        echo "Devnode ready — Stylus v${STYLUS_VERSION}, Chain ID ${CHAIN_ID}"
+
+        if [[ -z "$STYLUS_VERSION" || "$STYLUS_VERSION" == "0" ]]; then
+          echo "ERROR: ArbWasm precompile not responding"
+          exit 1
+        fi

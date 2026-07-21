@@ -8,10 +8,9 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "outDir": "./dist",
-    "declaration": true,
+    "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*", "test/**/*", ".envio/types.d.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["*.ts"],
+  "exclude": ["node_modules", "fixtures"]
 }

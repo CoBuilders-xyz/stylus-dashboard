@@ -2,13 +2,15 @@
   "name": "@stylus-dashboard/indexer",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
+    "postinstall": "envio codegen",
     "codegen": "envio codegen",
     "dev": "envio dev",
+    "dev:reset": "envio dev -r",
     "start": "envio start",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "typecheck:full": "envio codegen && tsc --noEmit --project tsconfig.full.json",
+    "typecheck": "envio codegen && tsc --noEmit",
     "lint": "eslint src/"
   },
   "dependencies": {
