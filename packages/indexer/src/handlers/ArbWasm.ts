@@ -119,6 +119,17 @@ indexer.onEvent(
       blockNumber: blockNumber,
     });
 
+    const index = await context.CodehashIndex.get(codehash);
+    const contract = index ? await context.StylusContract.get(index.contractId) : undefined;
+    if (contract) {
+      context.StylusContract.set({
+        ...contract,
+        isCached: cached,
+      });
+    } else {
+      context.log.warn(`Cache update for unknown codehash ${codehash}, skipping contract update`);
+    }
+
     const dayId = getDayId(timestamp);
     const existingStats = await context.DailyStats.get(dayId);
 
