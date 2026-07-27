@@ -27,11 +27,23 @@ const CODEHASH = '0x' + 'ab'.repeat(32);
 const UNKNOWN_CODEHASH = '0x' + 'ee'.repeat(32);
 const MODULE_HASH = '0x' + 'cd'.repeat(32);
 const PROGRAM = '0x525c2aBA45F66102bC4F45cA629C93F0f0dcC9e8';
+const SECOND_PROGRAM = '0x1CBd3b2770909D4e10f157cABC84C7264073C9Ec';
 const DEPLOYER = '0xF39FD6e51aad88F6F4ce6aB8827279cffFb92266';
+const SECOND_DEPLOYER = '0x90F79bf6EB2c4f870365E785982E1f101E93b906';
 const CACHE_MANAGER = '0x217788c286797D56Cd59aF5e493f3699C39cbbe8';
 const TIMESTAMP = 1705318200; // 2024-01-15 12:30:00 UTC
+const NEXT_DAY = TIMESTAMP + 24 * 60 * 60; // 2024-01-16 12:30:00 UTC
 
-const activateProgram = (testIndexer: ReturnType<typeof createTestIndexer>) =>
+const activate = (
+  testIndexer: ReturnType<typeof createTestIndexer>,
+  opts: {
+    program: `0x${string}`;
+    deployer: `0x${string}`;
+    blockNumber: number;
+    timestamp: number;
+    codehash?: string;
+  },
+) =>
   testIndexer.process({
     chains: {
       412346: {
@@ -40,18 +52,29 @@ const activateProgram = (testIndexer: ReturnType<typeof createTestIndexer>) =>
             contract: 'ArbWasm',
             event: 'ProgramActivated',
             params: {
-              codehash: CODEHASH,
+              codehash: opts.codehash ?? CODEHASH,
               moduleHash: MODULE_HASH,
-              program: PROGRAM,
+              program: opts.program,
               dataFee: 1000n,
               version: 2n,
             },
-            block: { number: 100, timestamp: TIMESTAMP },
-            transaction: { from: DEPLOYER },
+            block: { number: opts.blockNumber, timestamp: opts.timestamp },
+            transaction: {
+              from: opts.deployer,
+              hash: `0x${opts.blockNumber.toString(16).padStart(64, '0')}`,
+            },
           },
         ],
       },
     },
+  });
+
+const activateProgram = (testIndexer: ReturnType<typeof createTestIndexer>) =>
+  activate(testIndexer, {
+    program: PROGRAM,
+    deployer: DEPLOYER,
+    blockNumber: 100,
+    timestamp: TIMESTAMP,
   });
 
 describe('ProgramActivated handler', () => {
@@ -234,5 +257,118 @@ describe('UpdateProgramCache handler', () => {
 
     const contract = await testIndexer.StylusContract.getOrThrow(PROGRAM.toLowerCase());
     expect(contract.isCached).toBe(false);
+  });
+});
+
+describe('DailyStats deployer aggregation', () => {
+  it('does not count the same deployer twice in one day', async () => {
+    // Given an indexer that has activated one program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When the same deployer activates a second program the same day
+    await activate(testIndexer, {
+      program: SECOND_PROGRAM,
+      deployer: DEPLOYER,
+      blockNumber: 200,
+      timestamp: TIMESTAMP + 3600,
+    });
+
+    // Then activations count but the deployer is only counted once
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.stylusActivations).toBe(2);
+    expect(stats.uniqueDeployers).toBe(1);
+    expect(stats.cumulativeDeployers).toBe(1);
+
+    const registry = await testIndexer.DeployerRegistry.getAll();
+    expect(registry).toHaveLength(1);
+    expect(registry[0].id).toBe(DEPLOYER.toLowerCase());
+  });
+
+  it('counts a different deployer on the same day', async () => {
+    // Given an indexer that has activated one program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When a second deployer activates a program the same day
+    await activate(testIndexer, {
+      program: SECOND_PROGRAM,
+      deployer: SECOND_DEPLOYER,
+      blockNumber: 200,
+      timestamp: TIMESTAMP + 3600,
+    });
+
+    // Then both deployers are counted
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.uniqueDeployers).toBe(2);
+    expect(stats.cumulativeDeployers).toBe(2);
+  });
+
+  it('does not count a repeat deployer on a later day, but keeps the cumulative', async () => {
+    // Given an indexer that has activated one program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When the same deployer activates another program the next day
+    await activate(testIndexer, {
+      program: SECOND_PROGRAM,
+      deployer: DEPLOYER,
+      blockNumber: 300,
+      timestamp: NEXT_DAY,
+    });
+
+    // Then the new day counts no first-time deployers and carries the cumulative
+    const nextDayStats = await testIndexer.DailyStats.getOrThrow(getDayId(NEXT_DAY));
+    expect(nextDayStats.uniqueDeployers).toBe(0);
+    expect(nextDayStats.cumulativeDeployers).toBe(1);
+    expect(nextDayStats.stylusActivations).toBe(1);
+  });
+
+  it('counts a new deployer on a later day and increments the cumulative', async () => {
+    // Given an indexer with one deployer on day 1
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When a different deployer activates a program the next day
+    await activate(testIndexer, {
+      program: SECOND_PROGRAM,
+      deployer: SECOND_DEPLOYER,
+      blockNumber: 300,
+      timestamp: NEXT_DAY,
+    });
+
+    // Then the new day counts the first-timer and the cumulative grows
+    const nextDayStats = await testIndexer.DailyStats.getOrThrow(getDayId(NEXT_DAY));
+    expect(nextDayStats.uniqueDeployers).toBe(1);
+    expect(nextDayStats.cumulativeDeployers).toBe(2);
+  });
+
+  it('carries the cumulative into a day created by a keepalive', async () => {
+    // Given an indexer with one deployer on day 1
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When a keepalive is the first event of a later day
+    const KEEPALIVE_DAY = TIMESTAMP + 2 * 24 * 60 * 60;
+    await testIndexer.process({
+      chains: {
+        412346: {
+          simulate: [
+            {
+              contract: 'ArbWasm',
+              event: 'ProgramLifetimeExtended',
+              params: { codehash: CODEHASH, dataFee: 500n },
+              block: { number: 400, timestamp: KEEPALIVE_DAY },
+            },
+          ],
+        },
+      },
+    });
+
+    // Then the day's row is created carrying the cumulative, with no first-timers
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(KEEPALIVE_DAY));
+    expect(stats.stylusReactivations).toBe(1);
+    expect(stats.uniqueDeployers).toBe(0);
+    expect(stats.cumulativeDeployers).toBe(1);
   });
 });

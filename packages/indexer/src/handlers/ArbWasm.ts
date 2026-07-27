@@ -7,10 +7,11 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
   const timestamp = event.block.timestamp;
   const blockNumber = event.block.number;
   const chainId = event.chainId;
+  const deployer = event.transaction.from!.toLowerCase();
 
   context.StylusContract.set({
     id: program.toLowerCase(),
-    deployer: event.transaction.from!.toLowerCase(),
+    deployer: deployer,
     codehash: codehash,
     moduleHash: moduleHash,
     version: Number(version),
@@ -28,6 +29,18 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
     contractId: program.toLowerCase(),
   });
 
+  const isNewDeployer = !(await context.DeployerRegistry.get(deployer));
+  if (isNewDeployer) {
+    context.DeployerRegistry.set({ id: deployer });
+  }
+
+  const globalStats = await context.GlobalStats.get('global');
+  const cumulativeDeployers =
+    (globalStats?.cumulativeDeployers ?? 0) + (isNewDeployer ? 1 : 0);
+  if (isNewDeployer) {
+    context.GlobalStats.set({ id: 'global', cumulativeDeployers });
+  }
+
   const dayId = getDayId(timestamp);
   const existingStats = await context.DailyStats.get(dayId);
 
@@ -35,6 +48,8 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
     context.DailyStats.set({
       ...existingStats,
       stylusActivations: existingStats.stylusActivations + 1,
+      uniqueDeployers: existingStats.uniqueDeployers + (isNewDeployer ? 1 : 0),
+      cumulativeDeployers: cumulativeDeployers,
       totalStylusContracts: existingStats.totalStylusContracts + 1,
     });
   } else {
@@ -43,7 +58,8 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
       date: getDayStartTimestamp(timestamp),
       stylusActivations: 1,
       stylusReactivations: 0,
-      uniqueDeployers: 1,
+      uniqueDeployers: isNewDeployer ? 1 : 0,
+      cumulativeDeployers: cumulativeDeployers,
       totalStylusContracts: 1,
       cacheEvents: 0,
     });
@@ -88,12 +104,14 @@ indexer.onEvent(
         stylusReactivations: existingStats.stylusReactivations + 1,
       });
     } else {
+      const globalStats = await context.GlobalStats.get('global');
       context.DailyStats.set({
         id: dayId,
         date: getDayStartTimestamp(timestamp),
         stylusActivations: 0,
         stylusReactivations: 1,
         uniqueDeployers: 0,
+        cumulativeDeployers: globalStats?.cumulativeDeployers ?? 0,
         totalStylusContracts: 0,
         cacheEvents: 0,
       });
@@ -139,12 +157,14 @@ indexer.onEvent(
         cacheEvents: existingStats.cacheEvents + 1,
       });
     } else {
+      const globalStats = await context.GlobalStats.get('global');
       context.DailyStats.set({
         id: dayId,
         date: getDayStartTimestamp(timestamp),
         stylusActivations: 0,
         stylusReactivations: 0,
         uniqueDeployers: 0,
+        cumulativeDeployers: globalStats?.cumulativeDeployers ?? 0,
         totalStylusContracts: 0,
         cacheEvents: 1,
       });

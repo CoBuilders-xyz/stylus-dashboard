@@ -53,6 +53,19 @@ type CacheEvent @entity {
   blockNumber: Int!
 }
 
+"A wallet address that has activated at least one Stylus program"
+type DeployerRegistry @entity {
+  "Deployer wallet address"
+  id: ID!
+}
+
+"Singleton (id: 'global') with ecosystem-wide running totals"
+type GlobalStats @entity {
+  id: ID!
+  "Cumulative count of unique deployer addresses"
+  cumulativeDeployers: Int!
+}
+
 "Aggregated daily statistics for Stylus ecosystem"
 type DailyStats @entity {
   "Format: YYYY-MM-DD"
@@ -63,8 +76,10 @@ type DailyStats @entity {
   stylusActivations: Int!
   "Number of reactivations/keepalives on this day"
   stylusReactivations: Int!
-  "Number of unique deployer addresses on this day"
+  "Number of first-time deployer addresses on this day"
   uniqueDeployers: Int!
+  "Cumulative count of unique deployers up to this day"
+  cumulativeDeployers: Int!
   "Cumulative total of Stylus contracts up to this day"
   totalStylusContracts: Int!
   "Number of cache events on this day"
