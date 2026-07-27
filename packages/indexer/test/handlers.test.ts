@@ -28,6 +28,7 @@ const UNKNOWN_CODEHASH = '0x' + 'ee'.repeat(32);
 const MODULE_HASH = '0x' + 'cd'.repeat(32);
 const PROGRAM = '0x525c2aBA45F66102bC4F45cA629C93F0f0dcC9e8';
 const DEPLOYER = '0xF39FD6e51aad88F6F4ce6aB8827279cffFb92266';
+const CACHE_MANAGER = '0x217788c286797D56Cd59aF5e493f3699C39cbbe8';
 const TIMESTAMP = 1705318200; // 2024-01-15 12:30:00 UTC
 
 const activateProgram = (testIndexer: ReturnType<typeof createTestIndexer>) =>
@@ -153,5 +154,85 @@ describe('ProgramLifetimeExtended handler', () => {
     const contract = await testIndexer.StylusContract.getOrThrow(PROGRAM.toLowerCase());
     expect(contract.lastKeepalive).toBeUndefined();
     expect(contract.expiresAt).toBe(TIMESTAMP + EXPIRY_SECONDS);
+  });
+});
+
+describe('UpdateProgramCache handler', () => {
+  const CACHED_AT = TIMESTAMP + 3600; // 1 hour after activation
+  const EVICTED_AT = TIMESTAMP + 7200; // 2 hours after activation
+
+  const cacheUpdate = (
+    testIndexer: ReturnType<typeof createTestIndexer>,
+    codehash: string,
+    cached: boolean,
+    blockNumber: number,
+    timestamp: number,
+  ) =>
+    testIndexer.process({
+      chains: {
+        412346: {
+          simulate: [
+            {
+              contract: 'ArbWasmCache',
+              event: 'UpdateProgramCache',
+              params: { manager: CACHE_MANAGER, codehash, cached },
+              block: { number: blockNumber, timestamp },
+              transaction: { hash: '0x' + blockNumber.toString(16).padStart(64, '0') },
+            },
+          ],
+        },
+      },
+    });
+
+  it('sets isCached when the program is cached', async () => {
+    // Given an indexer that has activated one program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When the program is cached
+    await cacheUpdate(testIndexer, CODEHASH, true, 200, CACHED_AT);
+
+    // Then the cache event is recorded and the contract reflects it
+    const cacheEvents = await testIndexer.CacheEvent.getAll();
+    expect(cacheEvents).toHaveLength(1);
+    expect(cacheEvents[0].codehash).toBe(CODEHASH);
+    expect(cacheEvents[0].cached).toBe(true);
+
+    const contract = await testIndexer.StylusContract.getOrThrow(PROGRAM.toLowerCase());
+    expect(contract.isCached).toBe(true);
+  });
+
+  it('clears isCached when the program is evicted', async () => {
+    // Given an indexer that has activated and cached one program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+    await cacheUpdate(testIndexer, CODEHASH, true, 200, CACHED_AT);
+
+    // When the program is evicted
+    await cacheUpdate(testIndexer, CODEHASH, false, 300, EVICTED_AT);
+
+    // Then both cache events are recorded and the contract reflects the eviction
+    const cacheEvents = await testIndexer.CacheEvent.getAll();
+    expect(cacheEvents).toHaveLength(2);
+
+    const contract = await testIndexer.StylusContract.getOrThrow(PROGRAM.toLowerCase());
+    expect(contract.isCached).toBe(false);
+  });
+
+  it('ignores a cache update for an unknown codehash', async () => {
+    // Given an indexer that has activated one program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When a cache update arrives for a codehash no activation ever emitted
+    await cacheUpdate(testIndexer, UNKNOWN_CODEHASH, true, 200, CACHED_AT);
+
+    // Then the cache event is still recorded but the existing contract is untouched
+    const cacheEvents = await testIndexer.CacheEvent.getAll();
+    expect(cacheEvents).toHaveLength(1);
+    expect(cacheEvents[0].codehash).toBe(UNKNOWN_CODEHASH);
+
+    const contract = await testIndexer.StylusContract.getOrThrow(PROGRAM.toLowerCase());
+    expect(contract.isCached).toBe(false);
   });
 });
