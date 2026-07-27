@@ -8,28 +8,43 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
   const blockNumber = event.block.number;
   const chainId = event.chainId;
   const deployer = event.transaction.from!.toLowerCase();
+  const programId = program.toLowerCase();
 
-  context.StylusContract.set({
-    id: program.toLowerCase(),
-    deployer: deployer,
-    codehash: codehash,
-    moduleHash: moduleHash,
-    version: Number(version),
-    dataFee: dataFee,
-    activatedAt: timestamp,
-    activatedBlock: blockNumber,
-    chainId: chainId,
-    isCached: false,
-    lastKeepalive: undefined,
-    expiresAt: timestamp + EXPIRY_SECONDS,
-  });
+  const existingContract = await context.StylusContract.get(programId);
+  const isReactivation = existingContract !== undefined;
+
+  if (existingContract) {
+    context.StylusContract.set({
+      ...existingContract,
+      moduleHash: moduleHash,
+      version: Number(version),
+      dataFee: dataFee,
+      lastKeepalive: timestamp,
+      expiresAt: timestamp + EXPIRY_SECONDS,
+    });
+  } else {
+    context.StylusContract.set({
+      id: programId,
+      deployer: deployer,
+      codehash: codehash,
+      moduleHash: moduleHash,
+      version: Number(version),
+      dataFee: dataFee,
+      activatedAt: timestamp,
+      activatedBlock: blockNumber,
+      chainId: chainId,
+      isCached: false,
+      lastKeepalive: undefined,
+      expiresAt: timestamp + EXPIRY_SECONDS,
+    });
+  }
 
   context.CodehashIndex.set({
     id: codehash,
-    contractId: program.toLowerCase(),
+    contractId: programId,
   });
 
-  const isNewDeployer = !(await context.DeployerRegistry.get(deployer));
+  const isNewDeployer = !isReactivation && !(await context.DeployerRegistry.get(deployer));
   if (isNewDeployer) {
     context.DeployerRegistry.set({ id: deployer });
   }
@@ -47,20 +62,21 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
   if (existingStats) {
     context.DailyStats.set({
       ...existingStats,
-      stylusActivations: existingStats.stylusActivations + 1,
+      stylusActivations: existingStats.stylusActivations + (isReactivation ? 0 : 1),
+      stylusReactivations: existingStats.stylusReactivations + (isReactivation ? 1 : 0),
       uniqueDeployers: existingStats.uniqueDeployers + (isNewDeployer ? 1 : 0),
       cumulativeDeployers: cumulativeDeployers,
-      totalStylusContracts: existingStats.totalStylusContracts + 1,
+      totalStylusContracts: existingStats.totalStylusContracts + (isReactivation ? 0 : 1),
     });
   } else {
     context.DailyStats.set({
       id: dayId,
       date: getDayStartTimestamp(timestamp),
-      stylusActivations: 1,
-      stylusReactivations: 0,
+      stylusActivations: isReactivation ? 0 : 1,
+      stylusReactivations: isReactivation ? 1 : 0,
       uniqueDeployers: isNewDeployer ? 1 : 0,
       cumulativeDeployers: cumulativeDeployers,
-      totalStylusContracts: 1,
+      totalStylusContracts: isReactivation ? 0 : 1,
       cacheEvents: 0,
     });
   }
