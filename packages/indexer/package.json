@@ -9,7 +9,7 @@
     "dev": "envio dev",
     "dev:reset": "envio dev -r",
     "start": "envio start",
-    "test": "vitest run",
+    "test": "envio codegen && vitest run",
     "typecheck": "envio codegen && tsc --noEmit",
     "lint": "eslint src/"
   },

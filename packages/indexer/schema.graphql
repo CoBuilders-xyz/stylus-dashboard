@@ -25,6 +25,14 @@ type StylusContract @entity {
   expiresAt: Int
 }
 
+"Lookup from codehash to contract, for events that only carry a codehash"
+type CodehashIndex @entity {
+  "The program's codehash"
+  id: ID!
+  "Address of the StylusContract with this codehash"
+  contractId: String! @index
+}
+
 "A lifetime extension (keepalive) event for a Stylus program"
 type LifetimeExtension @entity {
   id: ID!

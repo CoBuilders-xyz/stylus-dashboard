@@ -23,6 +23,11 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
     expiresAt: timestamp + EXPIRY_SECONDS,
   });
 
+  context.CodehashIndex.set({
+    id: codehash,
+    contractId: program.toLowerCase(),
+  });
+
   const dayId = getDayId(timestamp);
   const existingStats = await context.DailyStats.get(dayId);
 
