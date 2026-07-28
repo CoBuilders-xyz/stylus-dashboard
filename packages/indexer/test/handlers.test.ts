@@ -107,9 +107,9 @@ describe('ProgramActivated handler', () => {
 
     // Then no index entry exists and a strict lookup fails
     expect(missing).toBeUndefined();
-    await expect(async () => testIndexer.CodehashIndex.getOrThrow(UNKNOWN_CODEHASH)).rejects.toThrow(
-      'not found',
-    );
+    await expect(async () =>
+      testIndexer.CodehashIndex.getOrThrow(UNKNOWN_CODEHASH),
+    ).rejects.toThrow('not found');
   });
 });
 
@@ -461,6 +461,7 @@ describe('ProgramActivated re-activation', () => {
     expect(stats.cumulativeDeployers).toBe(1);
   });
 });
+
 describe('DailyStats numeric fields', () => {
   it('totalStylusContracts increments with each activation regardless of deployer', async () => {
     // Given an indexer that has activated one program
@@ -573,5 +574,47 @@ describe('DailyStats numeric fields', () => {
     expect(stats.uniqueDeployers).toBe(0);
     expect(stats.totalStylusContracts).toBe(0);
     expect(stats.cumulativeDeployers).toBe(1); // inherited from GlobalStats, not reset
+  });
+});
+
+describe('DailyStats EVM counters', () => {
+  it('initializes them to zero on a day created by an activation', async () => {
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.evmDeployments).toBe(0);
+    expect(stats.totalEvmContracts).toBe(0);
+  });
+
+  it('initializes them to zero on a day created by a keepalive', async () => {
+    const testIndexer = createTestIndexer();
+    await testIndexer.process({
+      chains: {
+        412346: {
+          simulate: [
+            {
+              contract: 'ArbWasm',
+              event: 'ProgramLifetimeExtended',
+              params: { codehash: CODEHASH, dataFee: 500n },
+              block: { number: 100, timestamp: TIMESTAMP },
+            },
+          ],
+        },
+      },
+    });
+
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.evmDeployments).toBe(0);
+    expect(stats.totalEvmContracts).toBe(0);
+  });
+
+  it('initializes them to zero on a day created by a cache event', async () => {
+    const testIndexer = createTestIndexer();
+    await cacheUpdate(testIndexer, CODEHASH, true, 100, TIMESTAMP);
+
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.evmDeployments).toBe(0);
+    expect(stats.totalEvmContracts).toBe(0);
   });
 });
