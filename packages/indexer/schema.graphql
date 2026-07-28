@@ -53,6 +53,20 @@ type CacheEvent @entity {
   blockNumber: Int!
 }
 
+"An EVM (non-Stylus) contract deployment, for the EVM vs Stylus comparison"
+type EvmDeployment @entity {
+  "Address of the deployed contract"
+  id: ID!
+  "Address that created the contract (tx sender or creating contract)"
+  deployer: String! @index
+  "Block number of the deployment"
+  blockNumber: Int!
+  "Block timestamp of the deployment"
+  timestamp: Int!
+  "Chain ID where the contract was deployed"
+  chainId: Int!
+}
+
 "A wallet address that has activated at least one Stylus program"
 type DeployerRegistry @entity {
   "Deployer wallet address"
@@ -82,6 +96,10 @@ type DailyStats @entity {
   cumulativeDeployers: Int!
   "Cumulative total of Stylus contracts up to this day"
   totalStylusContracts: Int!
+  "Number of EVM contract deployments on this day"
+  evmDeployments: Int!
+  "Cumulative total of EVM contracts up to this day"
+  totalEvmContracts: Int!
   "Number of cache events on this day"
   cacheEvents: Int!
 }
