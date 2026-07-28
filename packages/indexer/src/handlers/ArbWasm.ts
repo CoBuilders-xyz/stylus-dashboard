@@ -77,6 +77,8 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
       uniqueDeployers: isNewDeployer ? 1 : 0,
       cumulativeDeployers: cumulativeDeployers,
       totalStylusContracts: isReactivation ? 0 : 1,
+      evmDeployments: 0,
+      totalEvmContracts: 0,
       cacheEvents: 0,
     });
   }
@@ -129,6 +131,8 @@ indexer.onEvent(
         uniqueDeployers: 0,
         cumulativeDeployers: globalStats?.cumulativeDeployers ?? 0,
         totalStylusContracts: 0,
+        evmDeployments: 0,
+        totalEvmContracts: 0,
         cacheEvents: 0,
       });
     }
@@ -182,6 +186,8 @@ indexer.onEvent(
         uniqueDeployers: 0,
         cumulativeDeployers: globalStats?.cumulativeDeployers ?? 0,
         totalStylusContracts: 0,
+        evmDeployments: 0,
+        totalEvmContracts: 0,
         cacheEvents: 1,
       });
     }
