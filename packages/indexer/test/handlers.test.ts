@@ -42,6 +42,8 @@ const activate = (
     blockNumber: number;
     timestamp: number;
     codehash?: string;
+    dataFee?: bigint;
+    version?: bigint;
   },
 ) =>
   testIndexer.process({
@@ -55,8 +57,8 @@ const activate = (
               codehash: opts.codehash ?? CODEHASH,
               moduleHash: MODULE_HASH,
               program: opts.program,
-              dataFee: 1000n,
-              version: 2n,
+              dataFee: opts.dataFee ?? 1000n,
+              version: opts.version ?? 2n,
             },
             block: { number: opts.blockNumber, timestamp: opts.timestamp },
             transaction: {
@@ -180,32 +182,32 @@ describe('ProgramLifetimeExtended handler', () => {
   });
 });
 
+const cacheUpdate = (
+  testIndexer: ReturnType<typeof createTestIndexer>,
+  codehash: string,
+  cached: boolean,
+  blockNumber: number,
+  timestamp: number,
+) =>
+  testIndexer.process({
+    chains: {
+      412346: {
+        simulate: [
+          {
+            contract: 'ArbWasmCache',
+            event: 'UpdateProgramCache',
+            params: { manager: CACHE_MANAGER, codehash, cached },
+            block: { number: blockNumber, timestamp },
+            transaction: { hash: '0x' + blockNumber.toString(16).padStart(64, '0') },
+          },
+        ],
+      },
+    },
+  });
+
 describe('UpdateProgramCache handler', () => {
   const CACHED_AT = TIMESTAMP + 3600; // 1 hour after activation
   const EVICTED_AT = TIMESTAMP + 7200; // 2 hours after activation
-
-  const cacheUpdate = (
-    testIndexer: ReturnType<typeof createTestIndexer>,
-    codehash: string,
-    cached: boolean,
-    blockNumber: number,
-    timestamp: number,
-  ) =>
-    testIndexer.process({
-      chains: {
-        412346: {
-          simulate: [
-            {
-              contract: 'ArbWasmCache',
-              event: 'UpdateProgramCache',
-              params: { manager: CACHE_MANAGER, codehash, cached },
-              block: { number: blockNumber, timestamp },
-              transaction: { hash: '0x' + blockNumber.toString(16).padStart(64, '0') },
-            },
-          ],
-        },
-      },
-    });
 
   it('sets isCached when the program is cached', async () => {
     // Given an indexer that has activated one program
@@ -368,6 +370,93 @@ describe('DailyStats deployer aggregation', () => {
     // Then the day's row is created carrying the cumulative, with no first-timers
     const stats = await testIndexer.DailyStats.getOrThrow(getDayId(KEEPALIVE_DAY));
     expect(stats.stylusReactivations).toBe(1);
+    expect(stats.uniqueDeployers).toBe(0);
+    expect(stats.cumulativeDeployers).toBe(1);
+  });
+});
+
+describe('ProgramActivated re-activation', () => {
+  const REACTIVATED_AT = TIMESTAMP + 5000;
+
+  const reactivate = (testIndexer: ReturnType<typeof createTestIndexer>, timestamp: number) =>
+    activate(testIndexer, {
+      program: PROGRAM,
+      deployer: SECOND_DEPLOYER,
+      blockNumber: 300,
+      timestamp: timestamp,
+      dataFee: 1200n,
+      version: 3n,
+    });
+
+  it('preserves identity and cache state, updating version and lifetime', async () => {
+    // Given an activated program that has been cached
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+    await cacheUpdate(testIndexer, CODEHASH, true, 200, TIMESTAMP + 3600);
+
+    // When another address re-activates the same program
+    await reactivate(testIndexer, REACTIVATED_AT);
+
+    // Then the original identity and cache state survive
+    const contract = await testIndexer.StylusContract.getOrThrow(PROGRAM.toLowerCase());
+    expect(contract.deployer).toBe(DEPLOYER.toLowerCase());
+    expect(contract.activatedAt).toBe(TIMESTAMP);
+    expect(contract.activatedBlock).toBe(100);
+    expect(contract.isCached).toBe(true);
+
+    // And the activation data and lifetime reflect the re-activation
+    expect(contract.version).toBe(3);
+    expect(contract.dataFee).toBe(1200n);
+    expect(contract.lastKeepalive).toBe(REACTIVATED_AT);
+    expect(contract.expiresAt).toBe(REACTIVATED_AT + EXPIRY_SECONDS);
+  });
+
+  it('counts as a reactivation in DailyStats, not as a new contract', async () => {
+    // Given an activated program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When it is re-activated the same day
+    await reactivate(testIndexer, REACTIVATED_AT);
+
+    // Then the day records one activation, one reactivation, one contract
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.stylusActivations).toBe(1);
+    expect(stats.stylusReactivations).toBe(1);
+    expect(stats.totalStylusContracts).toBe(1);
+  });
+
+  it('does not count the re-activator as a deployer', async () => {
+    // Given an activated program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When a never-seen address re-activates it
+    await reactivate(testIndexer, REACTIVATED_AT);
+
+    // Then only the original deployer is registered
+    const registry = await testIndexer.DeployerRegistry.getAll();
+    expect(registry).toHaveLength(1);
+    expect(registry[0].id).toBe(DEPLOYER.toLowerCase());
+
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.uniqueDeployers).toBe(1);
+    expect(stats.cumulativeDeployers).toBe(1);
+  });
+
+  it('creates the day row when a re-activation opens a new day', async () => {
+    // Given a program activated on day 1
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When a re-activation is the first event of the next day
+    await reactivate(testIndexer, NEXT_DAY);
+
+    // Then the new day counts it as a reactivation only, carrying the cumulative
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(NEXT_DAY));
+    expect(stats.stylusActivations).toBe(0);
+    expect(stats.stylusReactivations).toBe(1);
+    expect(stats.totalStylusContracts).toBe(0);
     expect(stats.uniqueDeployers).toBe(0);
     expect(stats.cumulativeDeployers).toBe(1);
   });
