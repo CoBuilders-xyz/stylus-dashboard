@@ -12,11 +12,12 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY packages/indexer/package.json packages/indexer/
-RUN pnpm install --frozen-lockfile --filter @stylus-dashboard/indexer
+RUN pnpm install --frozen-lockfile --filter @stylus-dashboard/indexer --ignore-scripts
 
 COPY packages/indexer/ packages/indexer/
 WORKDIR /app/packages/indexer
 
 RUN pnpm envio codegen
+RUN pnpm install --frozen-lockfile --filter @stylus-dashboard/indexer
 
 CMD ["pnpm", "envio", "start"]
