@@ -548,36 +548,8 @@ describe('DailyStats numeric fields', () => {
     const EVENT_DAY = TIMESTAMP + 3600; // still 2024-01-15
 
     // When two cache events arrive on that day (cache then evict)
-    await testIndexer.process({
-      chains: {
-        412346: {
-          simulate: [
-            {
-              contract: 'ArbWasmCache',
-              event: 'UpdateProgramCache',
-              params: { manager: CACHE_MANAGER, codehash: CODEHASH, cached: true },
-              block: { number: 200, timestamp: EVENT_DAY },
-              transaction: { hash: '0x' + (200).toString(16).padStart(64, '0') },
-            },
-          ],
-        },
-      },
-    });
-    await testIndexer.process({
-      chains: {
-        412346: {
-          simulate: [
-            {
-              contract: 'ArbWasmCache',
-              event: 'UpdateProgramCache',
-              params: { manager: CACHE_MANAGER, codehash: CODEHASH, cached: false },
-              block: { number: 300, timestamp: EVENT_DAY + 1800 },
-              transaction: { hash: '0x' + (300).toString(16).padStart(64, '0') },
-            },
-          ],
-        },
-      },
-    });
+    await cacheUpdate(testIndexer, CODEHASH, true, 200, EVENT_DAY);
+    await cacheUpdate(testIndexer, CODEHASH, false, 300, EVENT_DAY + 1800);
 
     // Then each cache event is counted in DailyStats
     const stats = await testIndexer.DailyStats.getOrThrow(getDayId(EVENT_DAY));
@@ -590,21 +562,7 @@ describe('DailyStats numeric fields', () => {
     await activateProgram(testIndexer);
 
     // When a cache event arrives on a later day with no prior activation that day
-    await testIndexer.process({
-      chains: {
-        412346: {
-          simulate: [
-            {
-              contract: 'ArbWasmCache',
-              event: 'UpdateProgramCache',
-              params: { manager: CACHE_MANAGER, codehash: CODEHASH, cached: true },
-              block: { number: 200, timestamp: NEXT_DAY },
-              transaction: { hash: '0x' + (200).toString(16).padStart(64, '0') },
-            },
-          ],
-        },
-      },
-    });
+    await cacheUpdate(testIndexer, CODEHASH, true, 200, NEXT_DAY);
 
     // Then a new DailyStats row is created with correct defaults and cumulativeDeployers
     // carried from GlobalStats (not reset to zero)
