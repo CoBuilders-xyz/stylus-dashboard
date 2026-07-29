@@ -5,7 +5,7 @@ RUN npm install -g pnpm@9.15.0
 
 FROM base AS deps
 WORKDIR /app
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY apps/web/package.json ./apps/web/
 RUN pnpm install --frozen-lockfile --filter @stylus-dashboard/web
 

@@ -10,7 +10,7 @@ RUN npm install -g pnpm@9.15.0
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY packages/indexer/package.json packages/indexer/
 RUN pnpm install --frozen-lockfile --filter @stylus-dashboard/indexer
 
