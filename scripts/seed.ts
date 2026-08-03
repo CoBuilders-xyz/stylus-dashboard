@@ -109,13 +109,16 @@ function mutateStylusSource(): void {
  * Deploy a Stylus contract using cargo stylus deploy.
  * Mutates source before each deploy so each contract gets a unique codehash,
  * guaranteeing a ProgramActivated event is emitted.
+ * Uses --no-verify: the default reproducible build pulls the ~1GB
+ * offchainlabs/cargo-stylus-base image, which fails on any machine that
+ * doesn't already have it. Seeding a local devnode doesn't need it.
  * Returns the deployed contract address or null on failure.
  */
 function deployStylus(privateKey: string): string | null {
   try {
     mutateStylusSource();
     const output = execSync(
-      `cargo stylus deploy --private-key ${privateKey} --endpoint ${TESTNODE_RPC}`,
+      `cargo stylus deploy --no-verify --private-key ${privateKey} --endpoint ${TESTNODE_RPC}`,
       { cwd: STYLUS_PROJECT_PATH, timeout: 120000, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
     );
     const match = output.match(/deployed code at address:\s*\x1b\[[^m]*m(0x[0-9a-fA-F]+)/);
