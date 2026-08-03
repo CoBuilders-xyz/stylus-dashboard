@@ -13,6 +13,7 @@
  * Usage:
  *   pnpm seed                          # runs until Ctrl+C
  *   DEPLOY_INTERVAL_MS=3000 pnpm seed  # deploy every 3s (default: 2s)
+ *   STYLUS_COUNT=1 pnpm seed           # deploy 1 Stylus contract, then exit (CI)
  */
 
 import { execSync } from 'node:child_process';
@@ -34,6 +35,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const TESTNODE_RPC = process.env.TESTNODE_RPC || 'http://localhost:8547';
 const DEPLOY_INTERVAL_MS = Number(process.env.DEPLOY_INTERVAL_MS) || 2000;
 const STYLUS_PROJECT_PATH = resolve(__dirname, 'fixtures/stylus-contract');
+// When set, deploy exactly this many Stylus contracts and exit instead of
+// looping forever. Used by CI, which needs a bounded, deterministic run.
+const STYLUS_COUNT = Number(process.env.STYLUS_COUNT) || 0;
 
 const ARB_WASM_ADDRESS = '0x0000000000000000000000000000000000000071' as const;
 
@@ -206,16 +210,27 @@ async function main() {
   console.log(`Mode: ${hasStylusProject ? 'EVM + Stylus' : 'EVM only'}`);
   console.log(`Deployers: ${accounts.map((a) => a.address.slice(0, 10) + '...').join(', ')}`);
   console.log('');
-  console.log('Deploying contracts... (Ctrl+C to stop)');
+  if (STYLUS_COUNT > 0 && !hasStylusProject) {
+    console.error(`ERROR: STYLUS_COUNT=${STYLUS_COUNT} requires cargo-stylus`);
+    process.exit(1);
+  }
+
+  console.log(
+    STYLUS_COUNT > 0
+      ? `Deploying ${STYLUS_COUNT} Stylus contract(s), then exiting...`
+      : 'Deploying contracts... (Ctrl+C to stop)',
+  );
   console.log('');
 
   let evmCount = 0;
   let stylusCount = 0;
 
   while (true) {
+    if (STYLUS_COUNT > 0 && stylusCount >= STYLUS_COUNT) break;
+
     const keyIdx = randomInt(0, allKeys.length - 1);
     const deployer = walletClients[keyIdx];
-    const attemptStylus = hasStylusProject && Math.random() < 0.35;
+    const attemptStylus = hasStylusProject && (STYLUS_COUNT > 0 || Math.random() < 0.35);
 
     try {
       if (attemptStylus) {
@@ -225,6 +240,10 @@ async function main() {
           console.log(
             `  [STYLUS #${stylusCount}] contract=${address} deployer=${accounts[keyIdx].address.slice(0, 10)}...`,
           );
+        } else if (STYLUS_COUNT > 0) {
+          // Bounded mode has nothing to retry into: fail loudly instead of looping.
+          console.error('ERROR: Stylus deployment failed');
+          process.exit(1);
         }
       } else {
         const bytecode = randomEvmBytecode();
