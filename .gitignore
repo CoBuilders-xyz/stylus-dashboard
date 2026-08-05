@@ -11,8 +11,8 @@ out/
 packages/indexer/generated/
 packages/indexer/.envio/
 
-# Rust/Stylus build
-scripts/fixtures/stylus-contract/target/
+# Seed-generated Stylus fixture project
+scripts/fixtures/
 
 # Environment
 .env
