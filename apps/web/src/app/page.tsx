@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql/client';
 import { GET_OVERVIEW_STATS } from '@/lib/graphql/queries';
-import { KpiCard } from '@/components/kpi-card';
+import { KpiGrid } from '@/components/kpi-card';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 interface StylusContract {
@@ -39,10 +39,12 @@ export default function OverviewPage() {
   const contracts = data?.StylusContract ?? [];
   const dailyStats = data?.DailyStats ?? [];
 
-  const totalContracts = contracts.length;
-  const uniqueDeployers = new Set(contracts.map((c) => c.deployer)).size;
-  const totalActivations = dailyStats.reduce((sum, d) => sum + d.stylusActivations, 0);
-  const totalReactivations = dailyStats.reduce((sum, d) => sum + d.stylusReactivations, 0);
+  const kpis = [
+    { title: 'Stylus Contracts', value: contracts.length },
+    { title: 'Unique Deployers', value: new Set(contracts.map((c) => c.deployer)).size },
+    { title: 'Activations', value: dailyStats.reduce((sum, d) => sum + d.stylusActivations, 0) },
+    { title: 'Reactivations', value: dailyStats.reduce((sum, d) => sum + d.stylusReactivations, 0) },
+  ];
 
   return (
     <div className="space-y-8">
@@ -59,12 +61,8 @@ export default function OverviewPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard title="Stylus Contracts" value={isLoading ? '...' : totalContracts} />
-        <KpiCard title="Unique Deployers" value={isLoading ? '...' : uniqueDeployers} />
-        <KpiCard title="Activations" value={isLoading ? '...' : totalActivations} />
-        <KpiCard title="Reactivations" value={isLoading ? '...' : totalReactivations} />
-      </div>
+      <KpiGrid kpis={kpis} isLoading={isLoading} />
+      
 
       {/* Recent Stylus Contracts */}
       <Card>
