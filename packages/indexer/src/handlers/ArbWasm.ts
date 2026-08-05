@@ -1,5 +1,11 @@
 import { indexer } from 'envio';
-import { getDayId, getDayStartTimestamp, EXPIRY_SECONDS } from '../helpers/stats.js';
+import {
+  getDayId,
+  getDayStartTimestamp,
+  newDailyStats,
+  EXPIRY_SECONDS,
+  SECONDS_PER_DAY,
+} from '../helpers/stats.js';
 
 // --- ArbWasm: ProgramActivated ---
 indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ event, context }) => {
@@ -49,11 +55,52 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
     context.DeployerRegistry.set({ id: deployer });
   }
 
+  const evmDeployment = await context.EvmDeployment.get(programId);
   const globalStats = await context.GlobalStats.get('global');
+  let totalEvmContracts = globalStats?.totalEvmContracts ?? 0;
   const cumulativeDeployers =
     (globalStats?.cumulativeDeployers ?? 0) + (isNewDeployer ? 1 : 0);
-  if (isNewDeployer) {
-    context.GlobalStats.set({ id: 'global', cumulativeDeployers });
+
+  // This address was counted as an EVM deployment before we knew it was
+  // Stylus: un-count it, walking every day between deployment and
+  // activation so the running total stays consistent.
+  if (evmDeployment) {
+    context.EvmDeployment.deleteUnsafe(programId);
+    totalEvmContracts = Math.max(0, totalEvmContracts - 1);
+
+    const deployDayStart = getDayStartTimestamp(evmDeployment.timestamp);
+    const activationDayStart = getDayStartTimestamp(timestamp);
+    const dayStarts = [];
+    for (let dayStart = deployDayStart; dayStart <= activationDayStart; dayStart += SECONDS_PER_DAY) {
+      dayStarts.push(dayStart);
+    }
+    const dayRows = await Promise.all(
+      dayStarts.map((dayStart) => context.DailyStats.get(getDayId(dayStart))),
+    );
+    for (const [i, dayStats] of dayRows.entries()) {
+      const isDeployDay = dayStarts[i] === deployDayStart;
+      if (!dayStats) {
+        if (isDeployDay) {
+          context.log.warn(`No DailyStats for reconciled EVM deployment ${programId}`);
+        }
+        continue;
+      }
+      context.DailyStats.set({
+        ...dayStats,
+        evmDeployments: isDeployDay
+          ? Math.max(0, dayStats.evmDeployments - 1)
+          : dayStats.evmDeployments,
+        totalEvmContracts: Math.max(0, dayStats.totalEvmContracts - 1),
+      });
+    }
+  }
+
+  if (isNewDeployer || evmDeployment) {
+    context.GlobalStats.set({
+      id: 'global',
+      cumulativeDeployers: cumulativeDeployers,
+      totalEvmContracts: totalEvmContracts,
+    });
   }
 
   const dayId = getDayId(timestamp);
@@ -70,16 +117,13 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
     });
   } else {
     context.DailyStats.set({
-      id: dayId,
-      date: getDayStartTimestamp(timestamp),
+      ...newDailyStats(dayId, timestamp, globalStats),
       stylusActivations: isReactivation ? 0 : 1,
       stylusReactivations: isReactivation ? 1 : 0,
       uniqueDeployers: isNewDeployer ? 1 : 0,
       cumulativeDeployers: cumulativeDeployers,
       totalStylusContracts: isReactivation ? 0 : 1,
-      evmDeployments: 0,
-      totalEvmContracts: 0,
-      cacheEvents: 0,
+      totalEvmContracts: totalEvmContracts,
     });
   }
 });
@@ -124,16 +168,8 @@ indexer.onEvent(
     } else {
       const globalStats = await context.GlobalStats.get('global');
       context.DailyStats.set({
-        id: dayId,
-        date: getDayStartTimestamp(timestamp),
-        stylusActivations: 0,
+        ...newDailyStats(dayId, timestamp, globalStats),
         stylusReactivations: 1,
-        uniqueDeployers: 0,
-        cumulativeDeployers: globalStats?.cumulativeDeployers ?? 0,
-        totalStylusContracts: 0,
-        evmDeployments: 0,
-        totalEvmContracts: 0,
-        cacheEvents: 0,
       });
     }
   },
@@ -179,15 +215,7 @@ indexer.onEvent(
     } else {
       const globalStats = await context.GlobalStats.get('global');
       context.DailyStats.set({
-        id: dayId,
-        date: getDayStartTimestamp(timestamp),
-        stylusActivations: 0,
-        stylusReactivations: 0,
-        uniqueDeployers: 0,
-        cumulativeDeployers: globalStats?.cumulativeDeployers ?? 0,
-        totalStylusContracts: 0,
-        evmDeployments: 0,
-        totalEvmContracts: 0,
+        ...newDailyStats(dayId, timestamp, globalStats),
         cacheEvents: 1,
       });
     }

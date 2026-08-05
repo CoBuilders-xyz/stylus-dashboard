@@ -78,6 +78,8 @@ type GlobalStats @entity {
   id: ID!
   "Cumulative count of unique deployer addresses"
   cumulativeDeployers: Int!
+  "Cumulative count of EVM contract deployments"
+  totalEvmContracts: Int!
 }
 
 "Aggregated daily statistics for Stylus ecosystem"
