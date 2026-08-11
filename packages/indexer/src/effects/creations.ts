@@ -14,6 +14,8 @@ import {
   HYPERSYNC_RATE_LIMIT,
   LAG_RETRY_ATTEMPTS,
   LAG_RETRY_DELAY_MS,
+  RATE_LIMIT_RETRY_ATTEMPTS,
+  RATE_LIMIT_RETRY_DELAY_MS,
   hypersyncTracesUrl,
 } from '../config.js';
 
@@ -26,6 +28,8 @@ type CreationsInput = {
 // Pages through HyperSync until the range is covered (to_block is
 // exclusive, next_block marks the resume point). When the traces archive
 // is still behind the range we need, wait and retry instead of failing.
+// Rate-limited responses (429) are retried with a longer backoff than
+// transient errors since the shared HyperSync quota can take 30-60s to reset.
 export async function fetchHypersyncCreations(input: CreationsInput): Promise<EvmCreation[]> {
   const token = process.env.ENVIO_API_TOKEN;
   if (!token) {
@@ -36,6 +40,7 @@ export async function fetchHypersyncCreations(input: CreationsInput): Promise<Ev
   const pages: HypersyncPage[] = [];
   let fromBlock = input.fromBlock;
   let lagRetries = 0;
+  let rateLimitRetries = 0;
 
   while (fromBlock <= input.toBlock) {
     const res = await postJson(
@@ -54,9 +59,18 @@ export async function fetchHypersyncCreations(input: CreationsInput): Promise<Ev
         },
       }),
     );
+    if (res.status === 429) {
+      if (rateLimitRetries >= RATE_LIMIT_RETRY_ATTEMPTS) {
+        throw new Error(`HyperSync rate limit exceeded after ${rateLimitRetries} retries at block ${fromBlock}`);
+      }
+      rateLimitRetries += 1;
+      await sleep(RATE_LIMIT_RETRY_DELAY_MS);
+      continue;
+    }
     if (!res.ok) {
       throw new Error(`HyperSync traces query failed: ${res.status} ${await res.text()}`);
     }
+    rateLimitRetries = 0;
     const page = (await res.json()) as HypersyncPage;
     if (typeof page?.next_block !== 'number') {
       throw new Error('HyperSync response is missing next_block');

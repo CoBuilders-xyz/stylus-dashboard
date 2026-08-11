@@ -6,8 +6,9 @@ export function hexToNumber(hex: string): number {
   return Number.parseInt(hex, 16);
 }
 
-// POST with retries on network errors and 429/5xx, backing off a bit more
-// each attempt. Anything else comes back for the caller to judge. Without
+// POST with retries on network errors and 5xx, backing off a bit more
+// each attempt. 429 is returned as-is so callers can apply their own
+// rate-limit backoff (HyperSync needs 30s+, RPCs need less). Without
 // this, one flaky upstream response would kill the whole indexer process.
 export async function postJson(
   url: string,
@@ -18,7 +19,7 @@ export async function postJson(
   for (let attempt = 1; attempt <= TRANSIENT_RETRY_ATTEMPTS; attempt++) {
     try {
       const res = await fetch(url, { method: 'POST', headers, body });
-      if (res.status === 429 || res.status >= 500) {
+      if (res.status >= 500) {
         lastError = new Error(`Request to ${url} failed: ${res.status} ${await res.text()}`);
       } else {
         return res;

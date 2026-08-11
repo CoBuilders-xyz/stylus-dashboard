@@ -14,6 +14,8 @@ export const LAG_RETRY_ATTEMPTS = 10;
 export const LAG_RETRY_DELAY_MS = 5_000;
 export const TRANSIENT_RETRY_ATTEMPTS = 5;
 export const TRANSIENT_RETRY_DELAY_MS = 2_000;
+export const RATE_LIMIT_RETRY_ATTEMPTS = 20;
+export const RATE_LIMIT_RETRY_DELAY_MS = 30_000;
 
 export const HYPERSYNC_RATE_LIMIT: false | { readonly calls: number; readonly per: 'second' | 'minute' } =
   process.env.VITEST ? false : { calls: 30, per: 'minute' };

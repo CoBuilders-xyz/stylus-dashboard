@@ -2,17 +2,13 @@ import { indexer, type EvmOnBlockContext } from 'envio';
 import { getCreations } from '../effects/creations.js';
 import { newDailyStats } from '../helpers/stats.js';
 import {
-  HISTORICAL_END_BLOCK,
   HISTORICAL_WINDOW,
   REALTIME_WINDOW,
   STYLUS_DEPLOYER_ADDRESS,
 } from '../config.js';
 import {
-  assertHistoricalAlignment,
   groupCreationsByDay,
   isArbitrumOne,
-  realtimeFloor,
-  windowBounds,
 } from '../helpers/evm.js';
 
 // Records every creation in the window as an EVM deployment, except known
@@ -87,45 +83,38 @@ async function indexCreations(
   });
 }
 
-// Big windows for the historical backfill, small ones near the head.
-// Both sides meet exactly at HISTORICAL_END_BLOCK with no gap or overlap.
-indexer.onBlock(
-  {
-    name: 'evmDeploymentsHistorical',
-    where: ({ chain }) => {
-      if (!isArbitrumOne(chain.id) || chain.startBlock > HISTORICAL_END_BLOCK) {
-        return false;
-      }
-      assertHistoricalAlignment(chain.startBlock);
-      return { block: { number: { _lte: HISTORICAL_END_BLOCK, _every: HISTORICAL_WINDOW } } };
-    },
-  },
-  async ({ block, context }) => {
-    const { startBlock } = indexer.chains[context.chain.id];
-    const { fromBlock, toBlock } = windowBounds(block.number, HISTORICAL_WINDOW, startBlock);
-    await indexCreations(context, context.chain.id, fromBlock, toBlock);
-  },
-);
+// Deferred traces strategy: let Envio's event sync complete unimpeded (no
+// HyperSync traces during backfill), then catch up all historical traces
+// once the chain reaches realtime. This avoids competing for rate-limit
+// budget with Envio's internal pipeline.
+let catchUpDone = false;
 
 indexer.onBlock(
   {
     name: 'evmDeploymentsRealtime',
     where: ({ chain }) =>
       isArbitrumOne(chain.id)
-        ? {
-            block: {
-              number: {
-                _gte: realtimeFloor(chain.startBlock) + REALTIME_WINDOW - 1,
-                _every: REALTIME_WINDOW,
-              },
-            },
-          }
+        ? { block: { number: { _every: REALTIME_WINDOW } } }
         : false,
   },
   async ({ block, context }) => {
-    const floor = realtimeFloor(indexer.chains[context.chain.id].startBlock);
-    const { fromBlock, toBlock } = windowBounds(block.number, REALTIME_WINDOW, floor);
-    await indexCreations(context, context.chain.id, fromBlock, toBlock);
+    if (!context.chain.isRealtime) return;
+
+    const { startBlock } = indexer.chains[context.chain.id];
+
+    if (!catchUpDone) {
+      catchUpDone = true;
+      // Process all missed historical blocks in HISTORICAL_WINDOW chunks.
+      // The effect cache makes restarts instant (already-fetched ranges are free).
+      for (let from = startBlock; from < block.number; from += HISTORICAL_WINDOW) {
+        const to = Math.min(from + HISTORICAL_WINDOW - 1, block.number - 1);
+        await indexCreations(context, context.chain.id, from, to);
+      }
+    }
+
+    // Process the current realtime window
+    const fromBlock = Math.max(startBlock, block.number - REALTIME_WINDOW + 1);
+    await indexCreations(context, context.chain.id, fromBlock, block.number);
   },
 );
 

@@ -28,7 +28,7 @@ contracts:
 
 chains:
   - id: 42161 # Arbitrum One (HyperSync supported natively)
-    start_block: 493400000 # Close to head: syncs with minimal API requests
+    start_block: 240000000 # ~1.5M blocks back: events sync first, then traces catch up at realtime
     contracts:
       - name: ArbWasm
         address: "0x0000000000000000000000000000000000000071"
