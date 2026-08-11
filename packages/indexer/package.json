@@ -9,7 +9,7 @@
     "dev": "envio dev",
     "dev:reset": "envio dev -r",
     "start": "envio start",
-    "test": "envio codegen && vitest run",
+    "test": "cp config.yaml config.yaml.bak && cp config.test.yaml config.yaml && envio codegen && vitest run; mv config.yaml.bak config.yaml",
     "typecheck": "envio codegen && tsc --noEmit",
     "lint": "eslint src/"
   },

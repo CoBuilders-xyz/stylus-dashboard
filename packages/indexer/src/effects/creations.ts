@@ -11,6 +11,7 @@ import {
 import { postJson, sleep } from '../helpers/utils.js';
 import {
   DEFAULT_DEVNODE_RPC_URL,
+  HYPERSYNC_RATE_LIMIT,
   LAG_RETRY_ATTEMPTS,
   LAG_RETRY_DELAY_MS,
   hypersyncTracesUrl,
@@ -156,7 +157,7 @@ export const getCreations = createEffect(
         timestamp: S.number,
       }),
     ),
-    rateLimit: false,
+    rateLimit: HYPERSYNC_RATE_LIMIT,
     cache: true,
   },
   async ({ input }) =>
