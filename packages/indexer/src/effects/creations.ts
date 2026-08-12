@@ -64,6 +64,7 @@ export async function fetchHypersyncCreations(input: CreationsInput): Promise<Ev
         throw new Error(`HyperSync rate limit exceeded after ${rateLimitRetries} retries at block ${fromBlock}`);
       }
       rateLimitRetries += 1;
+      console.log(`[traces] 429 at block ${fromBlock}, retry ${rateLimitRetries}/${RATE_LIMIT_RETRY_ATTEMPTS} (waiting ${RATE_LIMIT_RETRY_DELAY_MS / 1000}s)`);
       await sleep(RATE_LIMIT_RETRY_DELAY_MS);
       continue;
     }

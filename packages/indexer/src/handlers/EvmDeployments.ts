@@ -2,7 +2,7 @@ import { indexer, type EvmOnBlockContext } from 'envio';
 import { getCreations } from '../effects/creations.js';
 import { newDailyStats } from '../helpers/stats.js';
 import {
-  HISTORICAL_WINDOW,
+  CATCHUP_WINDOW,
   REALTIME_WINDOW,
   STYLUS_DEPLOYER_ADDRESS,
 } from '../config.js';
@@ -98,18 +98,23 @@ indexer.onBlock(
         : false,
   },
   async ({ block, context }) => {
+    context.log.info(`onBlock #${block.number} isRealtime=${context.chain.isRealtime}`);
     if (!context.chain.isRealtime) return;
 
     const { startBlock } = indexer.chains[context.chain.id];
 
     if (!catchUpDone) {
       catchUpDone = true;
-      // Process all missed historical blocks in HISTORICAL_WINDOW chunks.
-      // The effect cache makes restarts instant (already-fetched ranges are free).
-      for (let from = startBlock; from < block.number; from += HISTORICAL_WINDOW) {
-        const to = Math.min(from + HISTORICAL_WINDOW - 1, block.number - 1);
+      const totalChunks = Math.ceil((block.number - startBlock) / CATCHUP_WINDOW);
+      context.log.info(`Starting EVM catch-up: ${startBlock} → ${block.number} (${totalChunks} chunks of ${CATCHUP_WINDOW})`);
+      let chunk = 0;
+      for (let from = startBlock; from < block.number; from += CATCHUP_WINDOW) {
+        chunk++;
+        const to = Math.min(from + CATCHUP_WINDOW - 1, block.number - 1);
+        context.log.info(`Catch-up chunk ${chunk}/${totalChunks}: blocks ${from}→${to}`);
         await indexCreations(context, context.chain.id, from, to);
       }
+      context.log.info('EVM catch-up complete');
     }
 
     // Process the current realtime window
