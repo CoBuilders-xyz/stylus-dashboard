@@ -42,7 +42,7 @@ describe('OverviewClient', () => {
     renderWithQueryClient(<OverviewClient initialData={initialData} />);
 
     expect(screen.getByText('Stylus Adoption Overview')).toBeDefined();
-    expect(screen.queryAllByText('...')).toHaveLength(0);
+    expect(screen.queryAllByTestId('kpi-skeleton')).toHaveLength(0);
     expect(screen.queryByText(/No Stylus contracts indexed yet/)).toBeNull();
     expect(screen.getByText('2024-01-15')).toBeDefined();
   });
@@ -51,7 +51,7 @@ describe('OverviewClient', () => {
     renderWithQueryClient(<OverviewClient />);
 
     expect(screen.getByText('Stylus Adoption Overview')).toBeDefined();
-    expect(screen.getAllByText('...')).toHaveLength(4);
+    expect(screen.getAllByTestId('kpi-skeleton')).toHaveLength(4);
     expect(screen.getByText(/No Stylus contracts indexed yet/)).toBeDefined();
   });
 });
