@@ -17,6 +17,9 @@
   --color-ring: #3b82f6;
   --color-stylus: #06b6d4;
   --color-solidity: #f59e0b;
+  --color-status-active: #22c55e;
+  --color-status-expiring: #fbbf24;
+  --color-status-expired: #ef4444;
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
