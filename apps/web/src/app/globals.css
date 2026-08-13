@@ -1,6 +1,52 @@
 @import 'tailwindcss';
 
+/* next-themes sets `class="dark"` on <html>; wire it up to the `dark:` variant. */
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design tokens.
+ *
+ * `@theme` registers the token names so Tailwind generates the utilities
+ * (bg-card, text-muted-foreground, border-border, ...). The values below are
+ * the LIGHT theme. The `.dark` block further down overrides the same custom
+ * properties, so every utility — and every `var(--color-*)` read from JS, like
+ * the Recharts components — follows the active theme without any extra work.
+ *
+ * Contrast (WCAG 2.1 AA) against --color-background:
+ *   foreground        17.85:1   primary   5.17:1   stylus    5.36:1
+ *   muted-foreground   7.58:1   solidity  5.02:1
+ * Target: 4.5:1 for body text, 3:1 for large text, UI borders and chart marks.
+ */
 @theme {
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --color-primary: #2563eb;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f1f5f9;
+  --color-secondary-foreground: #0f172a;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #475569;
+  --color-accent: #f1f5f9;
+  --color-accent-foreground: #0f172a;
+  --color-border: #e2e8f0;
+  --color-ring: #2563eb;
+  --color-stylus: #0e7490;
+  --color-solidity: #b45309;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+}
+
+/*
+ * Dark theme — the original palette, unchanged.
+ *
+ * Declared outside `@layer` on purpose: unlayered declarations outrank the
+ * layered ones Tailwind emits for `@theme`, so these win whenever <html>
+ * carries the `dark` class.
+ */
+.dark {
   --color-background: #09090b;
   --color-foreground: #fafafa;
   --color-card: #0a0a0f;
@@ -17,9 +63,6 @@
   --color-ring: #3b82f6;
   --color-stylus: #06b6d4;
   --color-solidity: #f59e0b;
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
 }
 
 body {

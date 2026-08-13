@@ -66,7 +66,7 @@ export default function BuildersPage() {
       </div>
 
       {error && (
-        <div className="rounded border border-red-500/50 bg-red-500/10 p-4 text-red-400">
+        <div className="rounded border border-red-500/50 bg-red-500/10 p-4 text-red-600 dark:text-red-400">
           Failed to fetch data. Is the indexer running? ({String(error)})
         </div>
       )}
@@ -119,7 +119,7 @@ export default function BuildersPage() {
                           href={`https://arbiscan.io/address/${row.deployer}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-400 hover:underline"
+                          className="text-blue-600 hover:underline dark:text-blue-400"
                         >
                           {truncateAddress(row.deployer)}
                         </a>

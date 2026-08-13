@@ -56,7 +56,7 @@ export default function OverviewPage() {
       </div>
 
       {error && (
-        <div className="rounded border border-red-500/50 bg-red-500/10 p-4 text-red-400">
+        <div className="rounded border border-red-500/50 bg-red-500/10 p-4 text-red-600 dark:text-red-400">
           Failed to fetch data. Is the indexer running? ({String(error)})
         </div>
       )}
@@ -99,7 +99,7 @@ export default function OverviewPage() {
                       </td>
                       <td className="py-2">
                         <span
-                          className={`inline-block h-2 w-2 rounded-full ${c.isCached ? 'bg-green-400' : 'bg-yellow-400'}`}
+                          className={`inline-block h-2 w-2 rounded-full ${c.isCached ? 'bg-green-600 dark:bg-green-400' : 'bg-amber-600 dark:bg-yellow-400'}`}
                         />
                       </td>
                     </tr>
