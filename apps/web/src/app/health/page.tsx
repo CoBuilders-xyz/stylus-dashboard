@@ -6,6 +6,7 @@ import { GET_HEALTH_METRICS } from '@/lib/graphql/queries';
 import { KpiCard } from '@/components/kpi-card';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { StatusPieChart, type StatusSlice } from '@/components/charts/status-pie-chart';
+import { getExpiryStatus } from '@/lib/utils';
 
 const EXPIRING_SOON_WINDOW_SECONDS = 7 * 24 * 60 * 60;
 
@@ -36,13 +37,10 @@ export default function HealthPage() {
   let expired = 0;
 
   for (const c of contracts) {
-    if (c.expiresAt !== null && c.expiresAt < now) {
-      expired += 1;
-    } else if (c.expiresAt !== null && c.expiresAt <= now + EXPIRING_SOON_WINDOW_SECONDS) {
-      expiringSoon += 1;
-    } else {
-      active += 1;
-    }
+    const status = getExpiryStatus(c.expiresAt, now, EXPIRING_SOON_WINDOW_SECONDS);
+    if (status === 'expired') expired += 1;
+    else if (status === 'expiring-soon') expiringSoon += 1;
+    else active += 1;
   }
 
   const statusData: StatusSlice[] = [
