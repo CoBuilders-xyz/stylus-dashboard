@@ -41,7 +41,7 @@ export function KpiCard({ title, value, change, changeType = 'neutral' }: KpiCar
 
 export function KpiCardSkeleton() {
   return (
-    <Card>
+    <Card data-testid="kpi-skeleton">
       <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
       <div className="mt-2 h-8 w-2/3 animate-pulse rounded bg-muted" />
       <div className="mt-1 h-3 w-1/3 animate-pulse rounded bg-muted" />
