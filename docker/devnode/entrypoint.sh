@@ -9,6 +9,7 @@ echo "Starting Nitro devnode..."
 nitro \
   --dev \
   --http.addr 0.0.0.0 \
+  --http.vhosts=* \
   --http.api=net,web3,eth,debug \
   --validation.wasm.allowed-wasm-module-roots=/opt/nitro/machines,/opt/nitro/target-machines \
   &

@@ -20,4 +20,4 @@ WORKDIR /app/packages/indexer
 RUN pnpm envio codegen
 RUN pnpm install --frozen-lockfile --filter @stylus-dashboard/indexer
 
-CMD ["pnpm", "envio", "start", "-r"]
+CMD ["sh", "-c", "pnpm envio start -r --config ${ENVIO_CONFIG:-config.yaml}"]
