@@ -107,9 +107,9 @@ describe('ProgramActivated handler', () => {
 
     // Then no index entry exists and a strict lookup fails
     expect(missing).toBeUndefined();
-    await expect(async () => testIndexer.CodehashIndex.getOrThrow(UNKNOWN_CODEHASH)).rejects.toThrow(
-      'not found',
-    );
+    await expect(async () =>
+      testIndexer.CodehashIndex.getOrThrow(UNKNOWN_CODEHASH),
+    ).rejects.toThrow('not found');
   });
 });
 
@@ -459,5 +459,162 @@ describe('ProgramActivated re-activation', () => {
     expect(stats.totalStylusContracts).toBe(0);
     expect(stats.uniqueDeployers).toBe(0);
     expect(stats.cumulativeDeployers).toBe(1);
+  });
+});
+
+describe('DailyStats numeric fields', () => {
+  it('totalStylusContracts increments with each activation regardless of deployer', async () => {
+    // Given an indexer that has activated one program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When the same deployer activates a second program the same day
+    await activate(testIndexer, {
+      program: SECOND_PROGRAM,
+      deployer: DEPLOYER,
+      blockNumber: 200,
+      timestamp: TIMESTAMP + 3600,
+    });
+
+    // Then totalStylusContracts reflects the total, not just unique deployers
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.totalStylusContracts).toBe(2);
+    expect(stats.stylusActivations).toBe(2);
+    expect(stats.uniqueDeployers).toBe(1);
+  });
+
+  it('GlobalStats.cumulativeDeployers reflects all unique deployers seen', async () => {
+    // Given an indexer that has activated one program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When a second unique deployer activates a program
+    await activate(testIndexer, {
+      program: SECOND_PROGRAM,
+      deployer: SECOND_DEPLOYER,
+      blockNumber: 200,
+      timestamp: TIMESTAMP + 3600,
+    });
+
+    // Then GlobalStats records the total count of unique deployers ever seen
+    const globalStats = await testIndexer.GlobalStats.getOrThrow('global');
+    expect(globalStats.cumulativeDeployers).toBe(2);
+  });
+
+  it('stylusReactivations increments for multiple keepalives on the same day', async () => {
+    // Given an indexer that has activated one program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+    const SAME_DAY = TIMESTAMP + 3600; // still 2024-01-15
+
+    // When two keepalives arrive for that program on the same day
+    await testIndexer.process({
+      chains: {
+        412346: {
+          simulate: [
+            {
+              contract: 'ArbWasm',
+              event: 'ProgramLifetimeExtended',
+              params: { codehash: CODEHASH, dataFee: 500n },
+              block: { number: 200, timestamp: SAME_DAY },
+            },
+          ],
+        },
+      },
+    });
+    await testIndexer.process({
+      chains: {
+        412346: {
+          simulate: [
+            {
+              contract: 'ArbWasm',
+              event: 'ProgramLifetimeExtended',
+              params: { codehash: CODEHASH, dataFee: 500n },
+              block: { number: 300, timestamp: SAME_DAY + 1800 },
+            },
+          ],
+        },
+      },
+    });
+
+    // Then stylusReactivations counts each keepalive individually
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(SAME_DAY));
+    expect(stats.stylusReactivations).toBe(2);
+  });
+
+  it('cacheEvents accumulates with multiple UpdateProgramCache events on the same day', async () => {
+    // Given an indexer that has activated one program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+    const EVENT_DAY = TIMESTAMP + 3600; // still 2024-01-15
+
+    // When two cache events arrive on that day (cache then evict)
+    await cacheUpdate(testIndexer, CODEHASH, true, 200, EVENT_DAY);
+    await cacheUpdate(testIndexer, CODEHASH, false, 300, EVENT_DAY + 1800);
+
+    // Then each cache event is counted in DailyStats
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(EVENT_DAY));
+    expect(stats.cacheEvents).toBe(2);
+  });
+
+  it('creates a new DailyStats row when UpdateProgramCache is the first event of the day', async () => {
+    // Given an indexer with one deployer activated on day 1
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When a cache event arrives on a later day with no prior activation that day
+    await cacheUpdate(testIndexer, CODEHASH, true, 200, NEXT_DAY);
+
+    // Then a new DailyStats row is created with correct defaults and cumulativeDeployers
+    // carried from GlobalStats (not reset to zero)
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(NEXT_DAY));
+    expect(stats.cacheEvents).toBe(1);
+    expect(stats.stylusActivations).toBe(0);
+    expect(stats.stylusReactivations).toBe(0);
+    expect(stats.uniqueDeployers).toBe(0);
+    expect(stats.totalStylusContracts).toBe(0);
+    expect(stats.cumulativeDeployers).toBe(1); // inherited from GlobalStats, not reset
+  });
+});
+
+describe('DailyStats EVM counters', () => {
+  it('initializes them to zero on a day created by an activation', async () => {
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.evmDeployments).toBe(0);
+    expect(stats.totalEvmContracts).toBe(0);
+  });
+
+  it('initializes them to zero on a day created by a keepalive', async () => {
+    const testIndexer = createTestIndexer();
+    await testIndexer.process({
+      chains: {
+        412346: {
+          simulate: [
+            {
+              contract: 'ArbWasm',
+              event: 'ProgramLifetimeExtended',
+              params: { codehash: CODEHASH, dataFee: 500n },
+              block: { number: 100, timestamp: TIMESTAMP },
+            },
+          ],
+        },
+      },
+    });
+
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.evmDeployments).toBe(0);
+    expect(stats.totalEvmContracts).toBe(0);
+  });
+
+  it('initializes them to zero on a day created by a cache event', async () => {
+    const testIndexer = createTestIndexer();
+    await cacheUpdate(testIndexer, CODEHASH, true, 100, TIMESTAMP);
+
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.evmDeployments).toBe(0);
+    expect(stats.totalEvmContracts).toBe(0);
   });
 });

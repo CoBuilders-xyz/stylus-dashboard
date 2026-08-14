@@ -6,6 +6,7 @@ import {
   HeartPulse,
   GitCompare,
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const navItems = [
   { href: '/', label: 'Overview', icon: LayoutDashboard },
@@ -17,7 +18,7 @@ const navItems = [
 
 export function Sidebar() {
   return (
-    <aside className="hidden w-64 border-r border-border bg-card p-4 lg:block">
+    <aside className="hidden w-64 flex-col border-r border-border bg-card p-4 lg:flex">
       <div className="mb-8">
         <h1 className="text-lg font-bold text-primary">Stylus Dashboard</h1>
         <p className="text-xs text-muted-foreground">Arbitrum MultiVM Ecosystem</p>
@@ -34,6 +35,9 @@ export function Sidebar() {
           </Link>
         ))}
       </nav>
+      <div className="mt-auto border-t border-border pt-4">
+        <ThemeToggle />
+      </div>
     </aside>
   );
 }

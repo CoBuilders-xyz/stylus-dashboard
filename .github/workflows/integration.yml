@@ -11,11 +11,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_STYLUS_VERSION: "0.10.8"
+
 jobs:
   devnode-smoke:
-    name: Devnode Smoke Test
+    name: Devnode + Indexer Integration
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
@@ -28,8 +31,82 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Rust and cargo-stylus are installed before the devnode starts on purpose:
+      # Envio backs off its polling rate within ~20s of an idle chain, so the
+      # gap between the indexer starting and the seed is kept as short as
+      # possible. It does recover, but there is no reason to lean on that.
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo-stylus
+        id: cache-cargo-stylus
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-stylus
+          key: cargo-stylus-${{ env.CARGO_STYLUS_VERSION }}
+
+      - name: Install cargo-stylus
+        if: steps.cache-cargo-stylus.outputs.cache-hit != 'true'
+        run: cargo install cargo-stylus --version ${{ env.CARGO_STYLUS_VERSION }} --locked
+
       - name: Setup Devnode
         uses: ./.github/actions/setup-devnode
+
+      - name: Start indexer
+        working-directory: packages/indexer
+        run: |
+          pnpm dev --config config.arbitrum-local.yaml > /tmp/indexer.log 2>&1 &
+          echo "Indexer started (pid $!)"
+
+      # envio dev pulls the postgres and hasura images on a cold runner before
+      # anything answers, so this waits minutes rather than seconds.
+      - name: Wait for Hasura
+        run: |
+          for _ in $(seq 1 150); do
+            if curl -sf http://localhost:8080/healthz > /dev/null; then
+              echo "Hasura is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Hasura did not come up within 300s"
+          cat /tmp/indexer.log || true
+          exit 1
+
+      - name: Seed a Stylus deployment
+        env:
+          STYLUS_COUNT: 1
+        run: pnpm seed
+
+      # The indexer process staying alive is not proof of progress: it can be
+      # running and not advancing. Poll the data itself.
+      - name: Assert indexed data
+        run: |
+          QUERY='{"query":"{ StylusContract { id deployer } DailyStats { stylusActivations totalStylusContracts } }"}'
+
+          for _ in $(seq 1 60); do
+            RESULT=$(curl -sf http://localhost:8080/v1/graphql \
+              -H 'Content-Type: application/json' -d "$QUERY" || echo '{}')
+
+            CONTRACTS=$(echo "$RESULT" | jq '.data.StylusContract | length // 0')
+            ACTIVATIONS=$(echo "$RESULT" | jq '[.data.DailyStats[]?.stylusActivations] | add // 0')
+
+            if [ "$CONTRACTS" -gt 0 ] && [ "$ACTIVATIONS" -gt 0 ]; then
+              echo "Indexed $CONTRACTS StylusContract(s), $ACTIVATIONS activation(s)"
+              echo "$RESULT" | jq .
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "Indexer did not produce StylusContract/DailyStats rows within 300s"
+          exit 1
+
+      - name: Indexer logs
+        if: failure()
+        run: cat /tmp/indexer.log || true
 
       - name: Stop devnode
         if: always()
