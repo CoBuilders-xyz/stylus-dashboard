@@ -39,3 +39,13 @@ export interface CacheEvent {
   timestamp: number;
   blockNumber: number;
 }
+
+export type OverviewContract = Pick<
+  StylusContract,
+  'id' | 'deployer' | 'activatedAt' | 'isCached' | 'expiresAt'
+>;
+
+export interface OverviewData {
+  StylusContract: OverviewContract[];
+  DailyStats: DailyStats[];
+}
