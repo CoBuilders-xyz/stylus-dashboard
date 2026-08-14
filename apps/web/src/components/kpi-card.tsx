@@ -25,8 +25,8 @@ export function KpiGrid({
 
 export function KpiCard({ title, value, change, changeType = 'neutral' }: KpiCardProps) {
   const changeColor = {
-    positive: 'text-green-400',
-    negative: 'text-red-400',
+    positive: 'text-green-600 dark:text-green-400',
+    negative: 'text-red-600 dark:text-red-400',
     neutral: 'text-muted-foreground',
   }[changeType];
 
