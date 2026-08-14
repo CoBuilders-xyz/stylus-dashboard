@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+#
+# Railway devnode configuration: indexes a hosted Nitro devnode that runs
+# the seed script, producing continuous EVM + Stylus contract activity.
+#
+# The RPC URL should point at the devnode Railway service via private networking.
+# Override with: DEVNODE_RPC_URL env var on the indexer service.
+#
+# Usage on Railway:
+#   Set ENVIO_CONFIG=config.railway-devnode.yaml on the indexer service.
+
+name: stylus-dashboard-indexer
+description: Indexes Stylus ecosystem metrics from Railway devnode
+
+field_selection:
+  transaction_fields:
+    - from
+    - hash
+
+contracts:
+  - name: ArbWasm
+    abi_file_path: ./abis/ArbWasm.json
+    events:
+      - event: "ProgramActivated(bytes32 indexed codehash, bytes32 moduleHash, address program, uint256 dataFee, uint16 version)"
+      - event: "ProgramLifetimeExtended(bytes32 indexed codehash, uint256 dataFee)"
+
+  - name: ArbWasmCache
+    abi_file_path: ./abis/ArbWasmCache.json
+    events:
+      - event: "UpdateProgramCache(address indexed manager, bytes32 indexed codehash, bool cached)"
+
+chains:
+  - id: 412346 # Arbitrum devnode
+    rpc:
+      - url: ${DEVNODE_RPC_URL:-http://devnode.railway.internal:8547}
+        for: sync
+    start_block: 0
+    contracts:
+      - name: ArbWasm
+        address: "0x0000000000000000000000000000000000000071"
+      - name: ArbWasmCache
+        address: "0x0000000000000000000000000000000000000072"
