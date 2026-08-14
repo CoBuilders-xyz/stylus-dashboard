@@ -4,11 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql/client';
 import { GET_OVERVIEW_STATS } from '@/lib/graphql/queries';
 import { KpiGrid } from '@/components/kpi-card';
+import { QueryErrorBoundary } from '@/components/query-error-boundary';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import type { OverviewData } from '@/types';
 
 export function OverviewClient({ initialData }: { initialData?: OverviewData }) {
-  const { data, isLoading, error } = useQuery<OverviewData>({
+  const { data, isLoading, error, refetch } = useQuery<OverviewData>({
     queryKey: ['overview'],
     queryFn: () => graphqlClient.request(GET_OVERVIEW_STATS),
     initialData: initialData,
@@ -37,12 +38,7 @@ export function OverviewClient({ initialData }: { initialData?: OverviewData }) 
         </p>
       </div>
 
-      {error && (
-        <div className="rounded border border-red-500/50 bg-red-500/10 p-4 text-red-400">
-          Failed to fetch data. Is the indexer running? ({String(error)})
-        </div>
-      )}
-
+      <QueryErrorBoundary error={error ?? null} onRetry={() => refetch()}>
       <KpiGrid kpis={kpis} isLoading={isLoading} />
 
       {/* Recent Stylus Contracts */}
@@ -128,6 +124,7 @@ export function OverviewClient({ initialData }: { initialData?: OverviewData }) 
           </CardContent>
         </Card>
       )}
+      </QueryErrorBoundary>
     </div>
   );
 }
