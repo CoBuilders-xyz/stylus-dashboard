@@ -6,7 +6,8 @@ import { GET_HEALTH_METRICS } from '@/lib/graphql/queries';
 import { KpiCard } from '@/components/kpi-card';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { StatusPieChart, type StatusSlice } from '@/components/charts/status-pie-chart';
-import { getExpiryStatus } from '@/lib/utils';
+import { ExpiryHistogram, type ExpiryBucketCount } from '@/components/charts/expiry-histogram';
+import { getExpiryStatus, getExpiryBucket, EXPIRY_BUCKET_ORDER, type ExpiryBucket } from '@/lib/utils';
 
 const EXPIRING_SOON_WINDOW_SECONDS = 7 * 24 * 60 * 60;
 
@@ -36,11 +37,22 @@ export default function HealthPage() {
   let expiringSoon = 0;
   let expired = 0;
 
+  const bucketCounts: Record<ExpiryBucket, number> = {
+    Expired: 0,
+    '<7d': 0,
+    '7-30d': 0,
+    '30-90d': 0,
+    '90-180d': 0,
+    '180d+': 0,
+  };
+
   for (const c of contracts) {
     const status = getExpiryStatus(c.expiresAt, now, EXPIRING_SOON_WINDOW_SECONDS);
     if (status === 'expired') expired += 1;
     else if (status === 'expiring-soon') expiringSoon += 1;
     else active += 1;
+
+    bucketCounts[getExpiryBucket(c.expiresAt, now)] += 1;
   }
 
   const statusData: StatusSlice[] = [
@@ -48,6 +60,11 @@ export default function HealthPage() {
     { status: 'Expiring Soon', count: expiringSoon, color: 'var(--color-status-expiring)' },
     { status: 'Expired', count: expired, color: 'var(--color-status-expired)' },
   ];
+
+  const expiryHistogramData: ExpiryBucketCount[] = EXPIRY_BUCKET_ORDER.map((bucket) => ({
+    bucket,
+    count: bucketCounts[bucket],
+  }));
 
   return (
     <div className="space-y-8">
@@ -110,9 +127,15 @@ export default function HealthPage() {
             <CardTitle>Time Until Expiry</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Histogram: 0-1d / 1-3d / 3-7d / 7-30d / 30d+
-            </p>
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : contracts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No Stylus contracts indexed yet. Run the seed script to generate activity.
+              </p>
+            ) : (
+              <ExpiryHistogram data={expiryHistogramData} />
+            )}
           </CardContent>
         </Card>
       </div>
