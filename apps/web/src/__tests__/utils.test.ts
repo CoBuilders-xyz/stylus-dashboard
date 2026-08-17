@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { formatNumber, formatPercent, getExpiryStatus, getExpiryBucket } from '../lib/utils';
+import {
+  formatNumber,
+  formatPercent,
+  getExpiryStatus,
+  getExpiryBucket,
+  getReactivationRateTrend,
+} from '../lib/utils';
 
 describe('formatNumber', () => {
   it('formats millions', () => {
@@ -96,5 +102,76 @@ describe('getExpiryBucket', () => {
 
   it('buckets exactly 180 days and beyond as 180d+', () => {
     expect(getExpiryBucket(now + 180 * day, now)).toBe('180d+');
+  });
+});
+
+describe('getReactivationRateTrend', () => {
+  const now = 1_000_000;
+  const day = 24 * 60 * 60;
+
+  it('returns nulls when there are no daily stats', () => {
+    expect(getReactivationRateTrend([], now)).toEqual({
+      currentRate: null,
+      previousRate: null,
+      changePoints: null,
+    });
+  });
+
+  it('computes the current window rate from reactivations / activations', () => {
+    const stats = [
+      { date: now - 1 * day, stylusActivations: 10, stylusReactivations: 5 },
+      { date: now - 2 * day, stylusActivations: 10, stylusReactivations: 5 },
+    ];
+    const result = getReactivationRateTrend(stats, now);
+    expect(result.currentRate).toBeCloseTo(0.5);
+  });
+
+  it('leaves previousRate null when the prior window has no activations', () => {
+    const stats = [{ date: now - 1 * day, stylusActivations: 10, stylusReactivations: 5 }];
+    const result = getReactivationRateTrend(stats, now);
+    expect(result.previousRate).toBeNull();
+    expect(result.changePoints).toBeNull();
+  });
+
+  it('computes changePoints as current minus previous rate', () => {
+    const stats = [
+      { date: now - 1 * day, stylusActivations: 10, stylusReactivations: 6 }, // current: 0.6
+      { date: now - 10 * day, stylusActivations: 10, stylusReactivations: 2 }, // previous: 0.2
+    ];
+    const result = getReactivationRateTrend(stats, now);
+    expect(result.currentRate).toBeCloseTo(0.6);
+    expect(result.previousRate).toBeCloseTo(0.2);
+    expect(result.changePoints).toBeCloseTo(0.4);
+  });
+
+  it('treats a stat exactly 7 days old as inside the current window', () => {
+    const stats = [{ date: now - 7 * day, stylusActivations: 4, stylusReactivations: 1 }];
+    const result = getReactivationRateTrend(stats, now);
+    expect(result.currentRate).toBeCloseTo(0.25);
+    expect(result.previousRate).toBeNull();
+  });
+
+  it('treats a stat exactly 14 days old as inside the previous window', () => {
+    const stats = [
+      { date: now - 1 * day, stylusActivations: 1, stylusReactivations: 0 },
+      { date: now - 14 * day, stylusActivations: 4, stylusReactivations: 1 },
+    ];
+    const result = getReactivationRateTrend(stats, now);
+    expect(result.previousRate).toBeCloseTo(0.25);
+  });
+
+  it('excludes stats older than 14 days from both windows', () => {
+    const stats = [
+      { date: now - 1 * day, stylusActivations: 10, stylusReactivations: 5 },
+      { date: now - 20 * day, stylusActivations: 100, stylusReactivations: 100 },
+    ];
+    const result = getReactivationRateTrend(stats, now);
+    expect(result.previousRate).toBeNull();
+  });
+
+  it('treats zero activations with zero reactivations as null, not 0/0', () => {
+    const stats = [{ date: now - 1 * day, stylusActivations: 0, stylusReactivations: 0 }];
+    const result = getReactivationRateTrend(stats, now);
+    expect(result.currentRate).toBeNull();
   });
 });

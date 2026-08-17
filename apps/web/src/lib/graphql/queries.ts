@@ -66,5 +66,14 @@ export const GET_HEALTH_METRICS = gql`
       codehash
       timestamp
     }
+    DailyStats(order_by: { date: desc }, limit: 30) {
+      id
+      date
+      stylusActivations
+      stylusReactivations
+      uniqueDeployers
+      totalStylusContracts
+      cacheEvents
+    }
   }
 `;

@@ -7,7 +7,15 @@ import { KpiCard } from '@/components/kpi-card';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { StatusPieChart, type StatusSlice } from '@/components/charts/status-pie-chart';
 import { ExpiryHistogram, type ExpiryBucketCount } from '@/components/charts/expiry-histogram';
-import { getExpiryStatus, getExpiryBucket, EXPIRY_BUCKET_ORDER, type ExpiryBucket } from '@/lib/utils';
+import {
+  getExpiryStatus,
+  getExpiryBucket,
+  EXPIRY_BUCKET_ORDER,
+  type ExpiryBucket,
+  getReactivationRateTrend,
+  formatPercent,
+} from '@/lib/utils';
+import type { DailyStats } from '@/types';
 
 const EXPIRING_SOON_WINDOW_SECONDS = 7 * 24 * 60 * 60;
 
@@ -21,6 +29,7 @@ interface StylusContract {
 
 interface HealthMetricsData {
   StylusContract: StylusContract[];
+  DailyStats: DailyStats[];
 }
 
 export default function HealthPage() {
@@ -31,7 +40,21 @@ export default function HealthPage() {
   });
 
   const contracts = data?.StylusContract ?? [];
+  const dailyStats = data?.DailyStats ?? [];
   const now = Math.floor(Date.now() / 1000);
+
+  const { currentRate, changePoints } = getReactivationRateTrend(dailyStats, now);
+  const reactivationValue = currentRate !== null ? formatPercent(currentRate) : '-';
+  const reactivationChange =
+    changePoints !== null
+      ? `${changePoints >= 0 ? '+' : ''}${(changePoints * 100).toFixed(1)}pp vs prior 7d`
+      : undefined;
+  const reactivationChangeType =
+    changePoints === null || changePoints === 0
+      ? 'neutral'
+      : changePoints > 0
+        ? 'positive'
+        : 'negative';
 
   let active = 0;
   let expiringSoon = 0;
@@ -82,7 +105,12 @@ export default function HealthPage() {
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard title="Reactivation Rate" value="-" />
+        <KpiCard
+          title="Reactivation Rate"
+          value={isLoading ? '...' : reactivationValue}
+          change={reactivationChange}
+          changeType={reactivationChangeType}
+        />
         <KpiCard title="Avg Lifetime" value="-" />
         <KpiCard title="Cached Contracts" value="-" />
         <KpiCard title="Expiring Soon (7d)" value={isLoading ? '...' : expiringSoon} />
