@@ -43,6 +43,11 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
       lastKeepalive: undefined,
       expiresAt: timestamp + EXPIRY_SECONDS,
     });
+    
+    const known = await context.KnownStylusAddresses.getOrCreate({ id: 'global', addresses: [] });
+    if (!known.addresses.includes(programId)) {
+      context.KnownStylusAddresses.set({ id: 'global', addresses: [...known.addresses, programId] });
+    }
   }
 
   context.CodehashIndex.set({
