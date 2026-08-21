@@ -14,3 +14,4 @@ export const LAG_RETRY_ATTEMPTS = 10;
 export const LAG_RETRY_DELAY_MS = 5_000;
 export const TRANSIENT_RETRY_ATTEMPTS = 5;
 export const TRANSIENT_RETRY_DELAY_MS = 2_000;
+export const HYPER_SYNC_QUERY_URL = 'https://arbitrum.hypersync.xyz/query';
