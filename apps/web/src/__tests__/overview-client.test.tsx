@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { OverviewClient } from '@/app/overview-client';
 import type { OverviewData } from '@/types';
@@ -53,5 +53,37 @@ describe('OverviewClient', () => {
     expect(screen.getByText('Stylus Adoption Overview')).toBeDefined();
     expect(screen.getAllByTestId('kpi-skeleton')).toHaveLength(4);
     expect(screen.getByText(/No Stylus contracts indexed yet/)).toBeDefined();
+  });
+
+  it('shows the activations chart as loading while the query is in flight', () => {
+    renderWithQueryClient(<OverviewClient />);
+
+    expect(screen.getByText('Daily Activations')).toBeDefined();
+    expect(screen.getByText('Loading...')).toBeDefined();
+    expect(screen.queryByText(/No activations indexed for this period/)).toBeNull();
+  });
+
+  it('shows the empty activations message once a day-less response arrives', () => {
+    renderWithQueryClient(
+      <OverviewClient initialData={{ ...initialData, DailyStats: [] }} />,
+    );
+
+    expect(screen.getByText(/No activations indexed for this period/)).toBeDefined();
+    expect(screen.queryByText('Loading...')).toBeNull();
+  });
+
+  it('defaults the activations period to 30d and switches on click', () => {
+    renderWithQueryClient(<OverviewClient initialData={initialData} />);
+
+    const toggle = screen.getByRole('group', { name: 'Daily activations period' });
+    const button = (name: string) => within(toggle).getByRole('button', { name });
+
+    expect(button('30d').getAttribute('aria-pressed')).toBe('true');
+    expect(button('7d').getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(button('7d'));
+
+    expect(button('7d').getAttribute('aria-pressed')).toBe('true');
+    expect(button('30d').getAttribute('aria-pressed')).toBe('false');
   });
 });

@@ -6,6 +6,7 @@ import {
   getExpiryBucket,
   getReactivationRateTrend,
   getBuilderRetentionRate,
+  getActivationSeries,
 } from '../lib/utils';
 
 describe('formatNumber', () => {
@@ -215,5 +216,63 @@ describe('getBuilderRetentionRate', () => {
       { deployer: '0xD', activatedAt: 0 }, // one-off
     ];
     expect(getBuilderRetentionRate(contracts)).toBeCloseTo(0.5);
+  });
+});
+
+describe('getActivationSeries', () => {
+  const DAY = 24 * 60 * 60;
+  const TODAY = 1768003200; // 2026-01-10T00:00:00Z
+  const stat = (id: string, offsetDays: number, stylusActivations: number) => ({
+    id,
+    date: TODAY + offsetDays * DAY,
+    stylusActivations,
+  });
+
+  // The query returns newest first; the chart needs oldest first.
+  const DESC_STATS = [
+    stat('2026-01-10', 0, 5),
+    stat('2026-01-04', -6, 1),
+    stat('2025-12-01', -40, 99),
+  ];
+
+  it('returns nothing when there are no stats', () => {
+    expect(getActivationSeries([], '7d', TODAY)).toEqual([]);
+  });
+
+  it('keeps the 7d window, oldest first', () => {
+    expect(getActivationSeries(DESC_STATS, '7d', TODAY)).toEqual([
+      { date: '2026-01-04', value: 1 },
+      { date: '2026-01-10', value: 5 },
+    ]);
+  });
+
+  it('drops rows older than the requested window', () => {
+    const series = getActivationSeries(DESC_STATS, '30d', TODAY);
+
+    expect(series).toHaveLength(2);
+    expect(series.some((p) => p.value === 99)).toBe(false);
+  });
+
+  it('keeps every row for the all period', () => {
+    expect(getActivationSeries(DESC_STATS, 'all', TODAY)).toEqual([
+      { date: '2025-12-01', value: 99 },
+      { date: '2026-01-04', value: 1 },
+      { date: '2026-01-10', value: 5 },
+    ]);
+  });
+
+  it('normalises a mid-day now to the day start', () => {
+    // Without normalising, the 7d edge lands mid-afternoon and drops 2026-01-04.
+    const series = getActivationSeries(DESC_STATS, '7d', TODAY + 13 * 3600);
+
+    expect(series.map((p) => p.date)).toEqual(['2026-01-04', '2026-01-10']);
+  });
+
+  it('leaves the caller array untouched', () => {
+    const input = [...DESC_STATS];
+
+    getActivationSeries(input, 'all', TODAY);
+
+    expect(input).toEqual(DESC_STATS);
   });
 });

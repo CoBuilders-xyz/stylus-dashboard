@@ -132,3 +132,38 @@ export function getBuilderRetentionRate(contracts: DeployerActivation[]): number
 
   return retained / weeksByDeployer.size;
 }
+
+export type ChartPeriod = '7d' | '30d' | 'all';
+
+export const CHART_PERIODS: ChartPeriod[] = ['7d', '30d', 'all'];
+
+const PERIOD_DAYS = { '7d': 7, '30d': 30 } as const;
+
+export interface DailyActivationStats {
+  /** YYYY-MM-DD, used directly as the chart's x-axis label. */
+  id: string;
+  date: number;
+  stylusActivations: number;
+}
+
+/** Shape the Recharts time-series component expects. */
+export type ActivationPoint = {
+  date: string;
+  value: number;
+};
+
+export function getActivationSeries(
+  dailyStats: DailyActivationStats[],
+  period: ChartPeriod,
+  now: number,
+): ActivationPoint[] {
+  // DailyStats rows sit on 00:00 UTC, so the window edge has to as well.
+  const today = Math.floor(now / DAY_SECONDS) * DAY_SECONDS;
+  const windowStart = period === 'all' ? -Infinity : today - (PERIOD_DAYS[period] - 1) * DAY_SECONDS;
+
+  // filter() before sort() also copies, so the query's array is never mutated.
+  return dailyStats
+    .filter((stat) => stat.date >= windowStart)
+    .sort((a, b) => a.date - b.date)
+    .map((stat) => ({ date: stat.id, value: stat.stylusActivations }));
+}
