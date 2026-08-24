@@ -5,6 +5,7 @@ import {
   getExpiryStatus,
   getExpiryBucket,
   getReactivationRateTrend,
+  getBuilderRetentionRate,
 } from '../lib/utils';
 
 describe('formatNumber', () => {
@@ -173,5 +174,46 @@ describe('getReactivationRateTrend', () => {
     const stats = [{ date: now - 1 * day, stylusActivations: 0, stylusReactivations: 0 }];
     const result = getReactivationRateTrend(stats, now);
     expect(result.currentRate).toBeNull();
+  });
+});
+
+describe('getBuilderRetentionRate', () => {
+  const week = 7 * 24 * 60 * 60;
+
+  it('returns null when there are no deployers', () => {
+    expect(getBuilderRetentionRate([])).toBeNull();
+  });
+
+  it('does not count a deployer with a single activation as retained', () => {
+    const contracts = [{ deployer: '0xA', activatedAt: 0 }];
+    expect(getBuilderRetentionRate(contracts)).toBe(0);
+  });
+
+  it('does not count multiple activations in the same week as retained', () => {
+    const contracts = [
+      { deployer: '0xA', activatedAt: 0 },
+      { deployer: '0xA', activatedAt: week - 1 },
+    ];
+    expect(getBuilderRetentionRate(contracts)).toBe(0);
+  });
+
+  it('counts a deployer active in two distinct weeks as retained', () => {
+    const contracts = [
+      { deployer: '0xA', activatedAt: 0 },
+      { deployer: '0xA', activatedAt: week },
+    ];
+    expect(getBuilderRetentionRate(contracts)).toBe(1);
+  });
+
+  it('computes the fraction across a mix of one-off and retained deployers', () => {
+    const contracts = [
+      { deployer: '0xA', activatedAt: 0 },
+      { deployer: '0xA', activatedAt: week }, // retained
+      { deployer: '0xB', activatedAt: 0 }, // one-off
+      { deployer: '0xC', activatedAt: 0 },
+      { deployer: '0xC', activatedAt: 5 * week }, // retained
+      { deployer: '0xD', activatedAt: 0 }, // one-off
+    ];
+    expect(getBuilderRetentionRate(contracts)).toBeCloseTo(0.5);
   });
 });
