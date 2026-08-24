@@ -5,6 +5,7 @@ import {
   getExpiryStatus,
   getExpiryBucket,
   getReactivationRateTrend,
+  getContractStatus,
 } from '../lib/utils';
 
 describe('formatNumber', () => {
@@ -102,6 +103,34 @@ describe('getExpiryBucket', () => {
 
   it('buckets exactly 180 days and beyond as 180d+', () => {
     expect(getExpiryBucket(now + 180 * day, now)).toBe('180d+');
+  });
+});
+
+describe('getContractStatus', () => {
+  const now = 1_000_000;
+  const window = 7 * 24 * 60 * 60;
+
+  it('flags a past expiresAt as Expired regardless of isCached', () => {
+    expect(getContractStatus(true, now - 1, now, window)).toBe('Expired');
+    expect(getContractStatus(false, now - 1, now, window)).toBe('Expired');
+  });
+
+  it('flags an expiresAt inside the window as Expiring regardless of isCached', () => {
+    expect(getContractStatus(true, now + window - 1, now, window)).toBe('Expiring');
+    expect(getContractStatus(false, now + window - 1, now, window)).toBe('Expiring');
+  });
+
+  it('flags a cached contract outside the expiry window as Cached', () => {
+    expect(getContractStatus(true, now + window + 1, now, window)).toBe('Cached');
+  });
+
+  it('flags a non-cached contract outside the expiry window as Active', () => {
+    expect(getContractStatus(false, now + window + 1, now, window)).toBe('Active');
+  });
+
+  it('treats a null expiresAt as not expiring, so isCached decides', () => {
+    expect(getContractStatus(true, null, now, window)).toBe('Cached');
+    expect(getContractStatus(false, null, now, window)).toBe('Active');
   });
 });
 

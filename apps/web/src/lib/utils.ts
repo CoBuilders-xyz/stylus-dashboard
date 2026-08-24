@@ -28,6 +28,22 @@ export function getExpiryStatus(
   return 'active';
 }
 
+export type ContractStatus = 'Active' | 'Cached' | 'Expiring' | 'Expired';
+
+// Layers isCached on top of getExpiryStatus: expiry always wins over caching
+// (an expired contract shows as Expired even if it's still in the WASM cache).
+export function getContractStatus(
+  isCached: boolean,
+  expiresAt: number | null,
+  now: number,
+  windowSeconds: number,
+): ContractStatus {
+  const expiry = getExpiryStatus(expiresAt, now, windowSeconds);
+  if (expiry === 'expired') return 'Expired';
+  if (expiry === 'expiring-soon') return 'Expiring';
+  return isCached ? 'Cached' : 'Active';
+}
+
 export type ExpiryBucket = 'Expired' | '<7d' | '7-30d' | '30-90d' | '90-180d' | '180d+';
 
 export const EXPIRY_BUCKET_ORDER: ExpiryBucket[] = [
