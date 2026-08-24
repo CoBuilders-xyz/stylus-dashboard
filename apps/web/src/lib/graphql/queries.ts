@@ -43,6 +43,10 @@ export const GET_BUILDER_STATS = gql`
       deployer
       activatedAt
     }
+    DailyStats(order_by: { date: asc }) {
+      id
+      cumulativeDeployers
+    }
   }
 `;
 
