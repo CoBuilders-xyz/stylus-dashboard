@@ -5,14 +5,21 @@ import { graphqlClient } from '@/lib/graphql/client';
 import { GET_BUILDER_STATS } from '@/lib/graphql/queries';
 import { KpiCard } from '@/components/kpi-card';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { BuilderGrowthChart } from '@/components/charts/builder-growth-chart';
 
 interface BuilderContract {
   deployer: string;
   activatedAt: number;
 }
 
+interface BuilderDailyStat {
+  id: string;
+  cumulativeDeployers: number;
+}
+
 interface BuilderStatsData {
   StylusContract: BuilderContract[];
+  DailyStats: BuilderDailyStat[];
 }
 
 interface DeployerRow {
@@ -30,6 +37,12 @@ export default function BuildersPage() {
   });
 
   const contracts = data?.StylusContract ?? [];
+  const dailyStats = data?.DailyStats ?? [];
+
+  const growthData = dailyStats.map((d) => ({
+    date: d.id,
+    cumulativeDeployers: d.cumulativeDeployers,
+  }));
 
   const deployerMap = new Map<string, { contractCount: number; firstDeploy: number; lastDeploy: number }>();
   for (const c of contracts) {
@@ -83,9 +96,13 @@ export default function BuildersPage() {
           <CardTitle>Unique Deployers Over Time</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Connect indexer to see builder growth chart
-          </p>
+          {growthData.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {isLoading ? 'Loading...' : 'No deployers indexed yet.'}
+            </p>
+          ) : (
+            <BuilderGrowthChart data={growthData} />
+          )}
         </CardContent>
       </Card>
 
