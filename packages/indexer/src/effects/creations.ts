@@ -48,7 +48,8 @@ export async function fetchHypersyncCreations(input: CreationsInput): Promise<Ev
         to_block: input.toBlock + 1,
         traces: [{ type: ['create'] }],
         field_selection: {
-          trace: ['type', 'address', 'from', 'block_number'],
+          // `code` is the deployed bytecode.
+          trace: ['type', 'address', 'from', 'block_number', 'code'],
           block: ['number', 'timestamp'],
         },
       }),
@@ -154,6 +155,7 @@ export const getCreations = createEffect(
         deployer: S.string,
         blockNumber: S.number,
         timestamp: S.number,
+        isStylus: S.boolean,
       }),
     ),
     rateLimit: false,
