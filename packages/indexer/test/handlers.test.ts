@@ -375,6 +375,70 @@ describe('DailyStats deployer aggregation', () => {
   });
 });
 
+describe('DeployerRegistry type', () => {
+  it('marks a Stylus-only deployer as stylus', async () => {
+    // Given an indexer that has activated one program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // Then the deployer is registered as Stylus
+    const registry = await testIndexer.DeployerRegistry.getOrThrow(DEPLOYER.toLowerCase());
+    expect(registry.deployerType).toBe('stylus');
+  });
+
+  it('promotes a deployer already known from EVM to both', async () => {
+    // Given a deployer the EVM handler has already registered
+    const testIndexer = createTestIndexer();
+    testIndexer.DeployerRegistry.set({ id: DEPLOYER.toLowerCase(), deployerType: 'evm' });
+
+    // When that same address activates a Stylus program
+    await activateProgram(testIndexer);
+
+    // Then it counts as new on the Stylus side and covers both
+    const registry = await testIndexer.DeployerRegistry.getOrThrow(DEPLOYER.toLowerCase());
+    expect(registry.deployerType).toBe('both');
+
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.uniqueStylusDeployers).toBe(1);
+    expect(stats.uniqueDeployers).toBe(1);
+  });
+
+  it('does not re-count a deployer already covering both', async () => {
+    // Given a deployer registered as both
+    const testIndexer = createTestIndexer();
+    testIndexer.DeployerRegistry.set({ id: DEPLOYER.toLowerCase(), deployerType: 'both' });
+
+    // When it activates a Stylus program
+    await activateProgram(testIndexer);
+
+    // Then nothing is counted again and the type is unchanged
+    const registry = await testIndexer.DeployerRegistry.getOrThrow(DEPLOYER.toLowerCase());
+    expect(registry.deployerType).toBe('both');
+
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.uniqueStylusDeployers).toBe(0);
+    expect(stats.uniqueDeployers).toBe(0);
+  });
+
+  it('keeps uniqueStylusDeployers in step with uniqueDeployers', async () => {
+    // Given two different deployers activating on the same day
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+    await activate(testIndexer, {
+      program: SECOND_PROGRAM,
+      deployer: SECOND_DEPLOYER,
+      blockNumber: 200,
+      timestamp: TIMESTAMP + 3600,
+    });
+
+    // Then both fields report the same count, and no EVM deployer appears
+    const stats = await testIndexer.DailyStats.getOrThrow(getDayId(TIMESTAMP));
+    expect(stats.uniqueStylusDeployers).toBe(2);
+    expect(stats.uniqueDeployers).toBe(2);
+    expect(stats.uniqueEvmDeployers).toBe(0);
+  });
+});
+
 describe('ProgramActivated re-activation', () => {
   const REACTIVATED_AT = TIMESTAMP + 5000;
 

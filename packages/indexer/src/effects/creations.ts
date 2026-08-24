@@ -32,7 +32,9 @@ export async function fetchHypersyncCreations(input: CreationsInput): Promise<Ev
   }
 
   const url = hypersyncTracesUrl(input.chainId);
-  const pages: HypersyncPage[] = [];
+  // Extracted per page and dropped. Keeping the raw pages for a whole window
+  // is what ran the process out of memory.
+  const creations: EvmCreation[] = [];
   let fromBlock = input.fromBlock;
   let lagRetries = 0;
 
@@ -47,8 +49,12 @@ export async function fetchHypersyncCreations(input: CreationsInput): Promise<Ev
         from_block: fromBlock,
         to_block: input.toBlock + 1,
         traces: [{ type: ['create'] }],
+        // Brings in the transaction behind each trace, the only way to get the
+        // deployer rather than the factory that ran the creation.
+        join_mode: 'JoinAll',
         field_selection: {
-          trace: ['type', 'address', 'from', 'block_number'],
+          trace: ['type', 'address', 'from', 'block_number', 'transaction_hash'],
+          transaction: ['hash', 'from'],
           block: ['number', 'timestamp'],
         },
       }),
@@ -69,12 +75,14 @@ export async function fetchHypersyncCreations(input: CreationsInput): Promise<Ev
       await sleep(LAG_RETRY_DELAY_MS);
       continue;
     }
-    pages.push(page);
+    for (const creation of extractCreations([page])) {
+      creations.push(creation);
+    }
     fromBlock = page.next_block;
     lagRetries = 0;
   }
 
-  return extractCreations(pages);
+  return creations;
 }
 
 type RpcCall = { method: string; params: unknown[] };

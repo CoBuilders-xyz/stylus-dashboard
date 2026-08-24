@@ -25,6 +25,8 @@ export function newDailyStats(dayId: string, timestamp: number, globalStats: Glo
     stylusActivations: 0,
     stylusReactivations: 0,
     uniqueDeployers: 0,
+    uniqueStylusDeployers: 0,
+    uniqueEvmDeployers: 0,
     cumulativeDeployers: globalStats?.cumulativeDeployers ?? 0,
     totalStylusContracts: 0,
     evmDeployments: 0,
