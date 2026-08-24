@@ -9,6 +9,11 @@
 name: stylus-dashboard-indexer
 description: Indexes Stylus ecosystem metrics on Arbitrum One
 
+# One effect call per onBlock firing, and each one fetches a whole block window
+# from HyperSync. At the default of 5000 the preload pass fans all of them out
+# at once and the process runs out of heap. See issue #53.
+full_batch_size: 250
+
 field_selection:
   transaction_fields:
     - from
@@ -28,7 +33,7 @@ contracts:
 
 chains:
   - id: 42161 # Arbitrum One (HyperSync supported natively)
-    start_block: 240000000 # ArbOS 30 / Stylus activation ~August 2024
+    start_block: 249710000 # first ProgramActivated is at 249719934 (3 Sep 2024)
     contracts:
       - name: ArbWasm
         address: "0x0000000000000000000000000000000000000071"
