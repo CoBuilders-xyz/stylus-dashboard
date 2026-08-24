@@ -9,7 +9,7 @@ export const GET_OVERVIEW_STATS = gql`
       isCached
       expiresAt
     }
-    DailyStats(order_by: { date: desc }, limit: 30) {
+    DailyStats(order_by: { date: desc }) {
       id
       date
       stylusActivations
