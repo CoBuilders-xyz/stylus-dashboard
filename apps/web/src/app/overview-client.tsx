@@ -1,14 +1,23 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql/client';
 import { GET_OVERVIEW_STATS } from '@/lib/graphql/queries';
 import { KpiGrid } from '@/components/kpi-card';
+import { PeriodToggle } from '@/components/period-toggle';
 import { QueryErrorBoundary } from '@/components/query-error-boundary';
+import { TimeSeriesChart } from '@/components/charts/time-series-chart';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { getActivationSeries, type ChartPeriod } from '@/lib/utils';
 import type { OverviewData } from '@/types';
 
+/** The KPI row and the daily table have always summarised the last 30 days. */
+const RECENT_DAYS = 30;
+
 export function OverviewClient({ initialData }: { initialData?: OverviewData }) {
+  const [period, setPeriod] = useState<ChartPeriod>('30d');
+
   const { data, isLoading, error, refetch } = useQuery<OverviewData>({
     queryKey: ['overview'],
     queryFn: () => graphqlClient.request(GET_OVERVIEW_STATS),
@@ -18,14 +27,17 @@ export function OverviewClient({ initialData }: { initialData?: OverviewData }) 
 
   const contracts = data?.StylusContract ?? [];
   const dailyStats = data?.DailyStats ?? [];
+  const recentStats = dailyStats.slice(0, RECENT_DAYS);
+
+  const activationSeries = getActivationSeries(dailyStats, period, Math.floor(Date.now() / 1000));
 
   const kpis = [
     { title: 'Stylus Contracts', value: contracts.length },
     { title: 'Unique Deployers', value: new Set(contracts.map((c) => c.deployer)).size },
-    { title: 'Activations', value: dailyStats.reduce((sum, d) => sum + d.stylusActivations, 0) },
+    { title: 'Activations', value: recentStats.reduce((sum, d) => sum + d.stylusActivations, 0) },
     {
       title: 'Reactivations',
-      value: dailyStats.reduce((sum, d) => sum + d.stylusReactivations, 0),
+      value: recentStats.reduce((sum, d) => sum + d.stylusReactivations, 0),
     },
   ];
 
@@ -40,6 +52,25 @@ export function OverviewClient({ initialData }: { initialData?: OverviewData }) 
 
       <QueryErrorBoundary error={error ?? null} onRetry={() => refetch()}>
       <KpiGrid kpis={kpis} isLoading={isLoading} />
+
+      {/* Daily Activations */}
+      <Card>
+        <CardHeader className="flex items-center justify-between gap-4">
+          <CardTitle>Daily Activations</CardTitle>
+          <PeriodToggle value={period} onChange={setPeriod} label="Daily activations period" />
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <p className="text-muted-foreground text-sm">Loading...</p>
+          ) : activationSeries.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No activations indexed for this period.
+            </p>
+          ) : (
+            <TimeSeriesChart data={activationSeries} />
+          )}
+        </CardContent>
+      </Card>
 
       {/* Recent Stylus Contracts */}
       <Card>
@@ -91,7 +122,7 @@ export function OverviewClient({ initialData }: { initialData?: OverviewData }) 
       </Card>
 
       {/* Daily Stats */}
-      {dailyStats.length > 0 && (
+      {recentStats.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Daily Activity</CardTitle>
@@ -109,7 +140,7 @@ export function OverviewClient({ initialData }: { initialData?: OverviewData }) 
                   </tr>
                 </thead>
                 <tbody>
-                  {dailyStats.map((d) => (
+                  {recentStats.map((d) => (
                     <tr key={d.id} className="border-b border-border/50">
                       <td className="py-2 pr-4 font-medium">{d.id}</td>
                       <td className="py-2 pr-4">{d.stylusActivations}</td>
