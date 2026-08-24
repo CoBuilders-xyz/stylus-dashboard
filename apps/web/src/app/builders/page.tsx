@@ -5,6 +5,7 @@ import { graphqlClient } from '@/lib/graphql/client';
 import { GET_BUILDER_STATS } from '@/lib/graphql/queries';
 import { KpiCard } from '@/components/kpi-card';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { formatPercent, getBuilderRetentionRate } from '@/lib/utils';
 import { BuilderGrowthChart } from '@/components/charts/builder-growth-chart';
 
 interface BuilderContract {
@@ -66,6 +67,8 @@ export default function BuildersPage() {
   const repeatBuilders = leaderboard.filter((d) => d.contractCount > 1).length;
   const sevenDaysAgo = Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
   const newThisWeek = leaderboard.filter((d) => d.firstDeploy >= sevenDaysAgo).length;
+  const retentionRate = getBuilderRetentionRate(contracts);
+  const retentionValue = retentionRate !== null ? formatPercent(retentionRate) : '-';
 
   const truncateAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
 
@@ -84,11 +87,12 @@ export default function BuildersPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard title="Unique Deployers" value={isLoading ? '...' : uniqueDeployers} />
         <KpiCard title="Avg Contracts/Deployer" value={isLoading ? '...' : avgContractsPerDeployer} />
         <KpiCard title="Repeat Builders" value={isLoading ? '...' : repeatBuilders} />
         <KpiCard title="New This Week" value={isLoading ? '...' : newThisWeek} />
+        <KpiCard title="Retention (>1 week)" value={isLoading ? '...' : retentionValue} />
       </div>
 
       <Card>

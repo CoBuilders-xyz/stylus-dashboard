@@ -101,6 +101,38 @@ export function getReactivationRateTrend(
   return { currentRate, previousRate, changePoints };
 }
 
+export interface DeployerActivation {
+  deployer: string;
+  activatedAt: number;
+}
+
+const WEEK_SECONDS = 7 * DAY_SECONDS;
+
+// Fraction (0-1) of deployers active in more than one distinct week. Null
+// when there are no deployers to measure, same convention as
+// getReactivationRateTrend.
+export function getBuilderRetentionRate(contracts: DeployerActivation[]): number | null {
+  const weeksByDeployer = new Map<string, Set<number>>();
+
+  for (const { deployer, activatedAt } of contracts) {
+    // Fixed 7-day windows since the Unix epoch, not calendar/ISO weeks —
+    // matches the day-bucketing the indexer already uses for DailyStats.
+    const week = Math.floor(activatedAt / WEEK_SECONDS);
+    const weeks = weeksByDeployer.get(deployer);
+    if (weeks) weeks.add(week);
+    else weeksByDeployer.set(deployer, new Set([week]));
+  }
+
+  if (weeksByDeployer.size === 0) return null;
+
+  let retained = 0;
+  for (const weeks of weeksByDeployer.values()) {
+    if (weeks.size > 1) retained += 1;
+  }
+
+  return retained / weeksByDeployer.size;
+}
+
 export type ChartPeriod = '7d' | '30d' | 'all';
 
 export const CHART_PERIODS: ChartPeriod[] = ['7d', '30d', 'all'];
