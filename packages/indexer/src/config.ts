@@ -14,3 +14,4 @@ export const LAG_RETRY_ATTEMPTS = 10;
 export const LAG_RETRY_DELAY_MS = 5_000;
 export const TRANSIENT_RETRY_ATTEMPTS = 5;
 export const TRANSIENT_RETRY_DELAY_MS = 2_000;
+export const REQUEST_TIMEOUT_MS = 30_000;

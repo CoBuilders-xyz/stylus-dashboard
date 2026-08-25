@@ -54,9 +54,9 @@ export async function fetchHypersyncCreations(input: CreationsInput): Promise<Ev
       }),
     );
     if (!res.ok) {
-      throw new Error(`HyperSync traces query failed: ${res.status} ${await res.text()}`);
+      throw new Error(`HyperSync traces query failed: ${res.status} ${res.body}`);
     }
-    const page = (await res.json()) as HypersyncPage;
+    const page = JSON.parse(res.body) as HypersyncPage;
     if (typeof page?.next_block !== 'number') {
       throw new Error('HyperSync response is missing next_block');
     }
@@ -94,9 +94,9 @@ async function rpcBatch<T>(calls: RpcCall[]): Promise<T[]> {
     ),
   );
   if (!res.ok) {
-    throw new Error(`RPC batch failed: ${res.status} ${await res.text()}`);
+    throw new Error(`RPC batch failed: ${res.status} ${res.body}`);
   }
-  const results = (await res.json()) as { id: number; result?: T; error?: { message: string } }[];
+  const results = JSON.parse(res.body) as { id: number; result?: T; error?: { message: string } }[];
   const byId = new Map(results.map((r) => [r.id, r]));
   return calls.map((call, id) => {
     const entry = byId.get(id);
