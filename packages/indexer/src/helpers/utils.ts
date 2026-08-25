@@ -1,4 +1,8 @@
-import { TRANSIENT_RETRY_ATTEMPTS, TRANSIENT_RETRY_DELAY_MS } from '../config.js';
+import {
+  RATE_LIMIT_JITTER_MS,
+  TRANSIENT_RETRY_ATTEMPTS,
+  TRANSIENT_RETRY_DELAY_MS,
+} from '../config.js';
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -6,9 +10,22 @@ export function hexToNumber(hex: string): number {
   return Number.parseInt(hex, 16);
 }
 
-// POST with retries on network errors and 429/5xx, backing off a bit more
-// each attempt. Anything else comes back for the caller to judge. Without
-// this, one flaky upstream response would kill the whole indexer process.
+// A 429 from HyperSync has no Retry-After, but it does carry
+// x-ratelimit-reset: the seconds left in the window. The fixed backoff never
+// adds up to that, so a throttled call would always give up too early.
+function retryDelayMs(res: Response | null, attempt: number): number {
+  if (res?.status === 429) {
+    const reset = Number(res.headers.get('x-ratelimit-reset'));
+    if (Number.isFinite(reset) && reset > 0) {
+      return reset * 1000 + Math.random() * RATE_LIMIT_JITTER_MS;
+    }
+  }
+  return TRANSIENT_RETRY_DELAY_MS * attempt;
+}
+
+// POST with retries on network errors and 429/5xx. Anything else comes back
+// for the caller to judge. Without this, one flaky upstream response would
+// kill the whole indexer process.
 export async function postJson(
   url: string,
   headers: Record<string, string>,
@@ -16,18 +33,19 @@ export async function postJson(
 ): Promise<Response> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= TRANSIENT_RETRY_ATTEMPTS; attempt++) {
+    let res: Response | null = null;
     try {
-      const res = await fetch(url, { method: 'POST', headers, body });
-      if (res.status === 429 || res.status >= 500) {
-        lastError = new Error(`Request to ${url} failed: ${res.status} ${await res.text()}`);
-      } else {
+      res = await fetch(url, { method: 'POST', headers, body });
+      if (res.status !== 429 && res.status < 500) {
         return res;
       }
+      lastError = new Error(`Request to ${url} failed: ${res.status} ${await res.text()}`);
     } catch (err) {
       lastError = err;
+      res = null;
     }
     if (attempt < TRANSIENT_RETRY_ATTEMPTS) {
-      await sleep(TRANSIENT_RETRY_DELAY_MS * attempt);
+      await sleep(retryDelayMs(res, attempt));
     }
   }
   throw lastError;
