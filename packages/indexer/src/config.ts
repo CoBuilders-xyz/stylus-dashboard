@@ -1,5 +1,10 @@
 export const ARBITRUM_ONE_CHAIN_ID = 42161;
 export const STYLUS_DEPLOYER_ADDRESS = '0xcecba2f1dc234f70dd89f2041029807f8d03a990';
+export const STYLUS_CODE_PREFIX = '0xeff000';
+
+export const DEPLOYER_STYLUS = 'stylus';
+export const DEPLOYER_EVM = 'evm';
+export const DEPLOYER_BOTH = 'both';
 
 export const HISTORICAL_WINDOW = 10_000;
 export const REALTIME_WINDOW = 300;
@@ -15,3 +20,4 @@ export const LAG_RETRY_DELAY_MS = 5_000;
 export const TRANSIENT_RETRY_ATTEMPTS = 5;
 export const TRANSIENT_RETRY_DELAY_MS = 2_000;
 export const HYPER_SYNC_QUERY_URL = 'https://arbitrum.hypersync.xyz/query';
+export const REQUEST_TIMEOUT_MS = 30_000;

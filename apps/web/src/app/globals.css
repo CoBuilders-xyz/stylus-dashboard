@@ -15,7 +15,7 @@
  * Contrast (WCAG 2.1 AA) against --color-background:
  *   foreground        17.85:1   primary          5.17:1   stylus           5.36:1
  *   muted-foreground   7.58:1   solidity         5.02:1   status-active    5.02:1
- *   status-expiring     3.18:1  status-expired   6.47:1
+ *   status-expiring     3.18:1  status-expired   6.47:1   status-cached    6.98:1 (light) / 5.03:1 (dark)
  * Target: 4.5:1 for body text, 3:1 for large text, UI borders and chart marks.
  */
 @theme {
@@ -38,6 +38,7 @@
   --color-status-active: #15803d;
   --color-status-expiring: #d97706;
   --color-status-expired: #b91c1c;
+  --color-status-cached: #7e22ce;
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
@@ -70,6 +71,7 @@
   --color-status-active: #22c55e;
   --color-status-expiring: #fbbf24;
   --color-status-expired: #ef4444;
+  --color-status-cached: #a855f7;
 }
 
 body {

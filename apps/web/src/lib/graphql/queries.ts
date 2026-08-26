@@ -9,7 +9,7 @@ export const GET_OVERVIEW_STATS = gql`
       isCached
       expiresAt
     }
-    DailyStats(order_by: { date: desc }, limit: 30) {
+    DailyStats(order_by: { date: desc }) {
       id
       date
       stylusActivations
@@ -22,15 +22,12 @@ export const GET_OVERVIEW_STATS = gql`
 `;
 
 export const GET_CONTRACTS = gql`
-  query GetContracts($limit: Int, $offset: Int) {
-    StylusContract(order_by: { activatedAt: desc }, limit: $limit, offset: $offset) {
+  query GetContracts($limit: Int, $offset: Int, $orderBy: [StylusContract_order_by!]) {
+    StylusContract(order_by: $orderBy, limit: $limit, offset: $offset) {
       id
       deployer
-      codehash
       version
       activatedAt
-      activatedBlock
-      chainId
       isCached
       expiresAt
     }
@@ -42,6 +39,10 @@ export const GET_BUILDER_STATS = gql`
     StylusContract(order_by: { activatedAt: asc }) {
       deployer
       activatedAt
+    }
+    DailyStats(order_by: { date: asc }) {
+      id
+      cumulativeDeployers
     }
   }
 `;

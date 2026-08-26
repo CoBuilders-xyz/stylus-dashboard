@@ -28,6 +28,22 @@ export function getExpiryStatus(
   return 'active';
 }
 
+export type ContractStatus = 'Active' | 'Cached' | 'Expiring' | 'Expired';
+
+// Layers isCached on top of getExpiryStatus: expiry always wins over caching
+// (an expired contract shows as Expired even if it's still in the WASM cache).
+export function getContractStatus(
+  isCached: boolean,
+  expiresAt: number | null,
+  now: number,
+  windowSeconds: number,
+): ContractStatus {
+  const expiry = getExpiryStatus(expiresAt, now, windowSeconds);
+  if (expiry === 'expired') return 'Expired';
+  if (expiry === 'expiring-soon') return 'Expiring';
+  return isCached ? 'Cached' : 'Active';
+}
+
 export type ExpiryBucket = 'Expired' | '<7d' | '7-30d' | '30-90d' | '90-180d' | '180d+';
 
 export const EXPIRY_BUCKET_ORDER: ExpiryBucket[] = [
@@ -99,4 +115,71 @@ export function getReactivationRateTrend(
     currentRate !== null && previousRate !== null ? currentRate - previousRate : null;
 
   return { currentRate, previousRate, changePoints };
+}
+
+export interface DeployerActivation {
+  deployer: string;
+  activatedAt: number;
+}
+
+const WEEK_SECONDS = 7 * DAY_SECONDS;
+
+// Fraction (0-1) of deployers active in more than one distinct week. Null
+// when there are no deployers to measure, same convention as
+// getReactivationRateTrend.
+export function getBuilderRetentionRate(contracts: DeployerActivation[]): number | null {
+  const weeksByDeployer = new Map<string, Set<number>>();
+
+  for (const { deployer, activatedAt } of contracts) {
+    // Fixed 7-day windows since the Unix epoch, not calendar/ISO weeks —
+    // matches the day-bucketing the indexer already uses for DailyStats.
+    const week = Math.floor(activatedAt / WEEK_SECONDS);
+    const weeks = weeksByDeployer.get(deployer);
+    if (weeks) weeks.add(week);
+    else weeksByDeployer.set(deployer, new Set([week]));
+  }
+
+  if (weeksByDeployer.size === 0) return null;
+
+  let retained = 0;
+  for (const weeks of weeksByDeployer.values()) {
+    if (weeks.size > 1) retained += 1;
+  }
+
+  return retained / weeksByDeployer.size;
+}
+
+export type ChartPeriod = '7d' | '30d' | 'all';
+
+export const CHART_PERIODS: ChartPeriod[] = ['7d', '30d', 'all'];
+
+const PERIOD_DAYS = { '7d': 7, '30d': 30 } as const;
+
+export interface DailyActivationStats {
+  /** YYYY-MM-DD, used directly as the chart's x-axis label. */
+  id: string;
+  date: number;
+  stylusActivations: number;
+}
+
+/** Shape the Recharts time-series component expects. */
+export type ActivationPoint = {
+  date: string;
+  value: number;
+};
+
+export function getActivationSeries(
+  dailyStats: DailyActivationStats[],
+  period: ChartPeriod,
+  now: number,
+): ActivationPoint[] {
+  // DailyStats rows sit on 00:00 UTC, so the window edge has to as well.
+  const today = Math.floor(now / DAY_SECONDS) * DAY_SECONDS;
+  const windowStart = period === 'all' ? -Infinity : today - (PERIOD_DAYS[period] - 1) * DAY_SECONDS;
+
+  // filter() before sort() also copies, so the query's array is never mutated.
+  return dailyStats
+    .filter((stat) => stat.date >= windowStart)
+    .sort((a, b) => a.date - b.date)
+    .map((stat) => ({ date: stat.id, value: stat.stylusActivations }));
 }

@@ -12,6 +12,7 @@ import {
   assertHistoricalAlignment,
   extractCreations,
   extractDirectCreations,
+  firstDayByDeployer,
   groupCreationsByDay,
   isArbitrumOne,
   realtimeFloor,
@@ -60,6 +61,48 @@ describe('evm helpers', () => {
     });
   });
 
+  describe('firstDayByDeployer', () => {
+    const creation = (deployer: string, timestamp: number) => ({
+      address: '0x' + timestamp,
+      deployer,
+      blockNumber: 1,
+      timestamp,
+      isStylus: false,
+    });
+    const endOfDay = 1705363199; // 2024-01-15 23:59:59 UTC
+    const startOfNext = 1705363200; // 2024-01-16 00:00:00 UTC
+
+    it('keeps the day of a deployer earliest creation, not its later ones', () => {
+      const map = firstDayByDeployer([
+        creation('0xAAA', endOfDay - 10),
+        creation('0xAAA', startOfNext),
+      ]);
+      expect(map.get('0xaaa')).toBe('2024-01-15');
+    });
+
+    it('gives the same answer when the creations arrive out of order', () => {
+      const map = firstDayByDeployer([
+        creation('0xAAA', startOfNext),
+        creation('0xAAA', endOfDay - 10),
+      ]);
+      expect(map.get('0xaaa')).toBe('2024-01-15');
+    });
+
+    it('lowercases the deployer so it matches the registry ids', () => {
+      const map = firstDayByDeployer([creation('0xABCDEF', endOfDay)]);
+      expect([...map.keys()]).toEqual(['0xabcdef']);
+    });
+
+    it('reports one entry per deployer even with many creations', () => {
+      const map = firstDayByDeployer([
+        creation('0xAAA', endOfDay),
+        creation('0xBBB', endOfDay),
+        creation('0xAAA', endOfDay + 1),
+      ]);
+      expect(map.size).toBe(2);
+    });
+  });
+
   describe('groupCreationsByDay', () => {
     it('buckets creations on both sides of a UTC midnight into separate days', () => {
       const creation = (timestamp: number, address: string) => ({
@@ -67,6 +110,7 @@ describe('evm helpers', () => {
         deployer: '0xD',
         blockNumber: 1,
         timestamp,
+        isStylus: false,
       });
       const endOfDay = 1705363199; // 2024-01-15 23:59:59 UTC
       const startOfNext = 1705363200; // 2024-01-16 00:00:00 UTC
@@ -176,8 +220,51 @@ describe('evm helpers', () => {
         ),
       ]);
       expect(result).toEqual([
-        { address: '0xAAA', deployer: '0xBBB', blockNumber: 10, timestamp: 100 },
+        { address: '0xAAA', deployer: '0xBBB', blockNumber: 10, timestamp: 100, isStylus: false },
       ]);
+    });
+
+    it('prefers the transaction sender over the trace creator', () => {
+      // The trace creator is the factory; the deployer we want sent the tx
+      const result = extractCreations([
+        {
+          data: [
+            {
+              traces: [
+                {
+                  type: 'create',
+                  address: '0xAAA',
+                  from: '0xFACTORY',
+                  block_number: 10,
+                  transaction_hash: '0xHASH',
+                },
+              ],
+              transactions: [{ hash: '0xhash', from: '0xWALLET' }],
+              blocks: [{ number: 10, timestamp: '0x64' }],
+            },
+          ],
+          next_block: 0,
+        },
+      ]);
+      expect(result[0].deployer).toBe('0xWALLET');
+    });
+
+    it('falls back to the trace creator when the transaction is missing', () => {
+      const result = extractCreations([
+        page(
+          [
+            {
+              type: 'create',
+              address: '0xAAA',
+              from: '0xFACTORY',
+              block_number: 10,
+              transaction_hash: '0xHASH',
+            },
+          ],
+          [{ number: 10, timestamp: '0x64' }],
+        ),
+      ]);
+      expect(result[0].deployer).toBe('0xFACTORY');
     });
 
     it('drops failed creations (traces without address)', () => {
@@ -228,7 +315,7 @@ describe('evm helpers', () => {
       ];
       const result = extractDirectCreations([block], receipts);
       expect(result).toEqual([
-        { address: '0xAAA', deployer: '0xBBB', blockNumber: 10, timestamp: 100 },
+        { address: '0xAAA', deployer: '0xBBB', blockNumber: 10, timestamp: 100, isStylus: false },
       ]);
     });
   });
@@ -451,7 +538,7 @@ describe('getCreations fetchers', () => {
     const result = await fetchRpcCreations({ chainId: 412346, fromBlock: 5, toBlock: 5 });
 
     expect(result).toEqual([
-      { address: '0xNEW', deployer: '0xSENDER', blockNumber: 5, timestamp: 100 },
+      { address: '0xNEW', deployer: '0xSENDER', blockNumber: 5, timestamp: 100, isStylus: false },
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8547');
@@ -526,6 +613,8 @@ describe('ProgramActivated reconciliation with EvmDeployment', () => {
       stylusActivations: 0,
       stylusReactivations: 0,
       uniqueDeployers: 0,
+      uniqueStylusDeployers: 0,
+      uniqueEvmDeployers: 0,
       cumulativeDeployers: 0,
       totalStylusContracts: 0,
       evmDeployments: 2,
@@ -575,6 +664,8 @@ describe('ProgramActivated reconciliation with EvmDeployment', () => {
       stylusActivations: 0,
       stylusReactivations: 1,
       uniqueDeployers: 0,
+      uniqueStylusDeployers: 0,
+      uniqueEvmDeployers: 0,
       cumulativeDeployers: 0,
       totalStylusContracts: 0,
       evmDeployments: 0,
