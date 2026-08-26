@@ -109,5 +109,7 @@ if [[ "$DETACH" == true ]]; then
   echo "Stop with: docker stop ${CONTAINER_NAME}"
 else
   echo "Press Ctrl-C to stop..."
-  wait
+  # docker run uses detached mode, so there are no shell jobs for a bare
+  # `wait` to follow. Wait on the container itself to keep this script alive.
+  docker wait "${CONTAINER_NAME}" >/dev/null
 fi
