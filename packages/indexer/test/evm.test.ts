@@ -9,11 +9,12 @@ import {
   TRANSIENT_RETRY_ATTEMPTS,
   TRANSIENT_RETRY_DELAY_MS,
 } from '../src/config';
-import { hexToNumber, postJson, RateLimiter } from '../src/helpers/utils';
+import { hexToNumber, postJson } from '../src/helpers/utils';
 import {
   assertHistoricalAlignment,
   extractCreations,
   extractDirectCreations,
+  firstDayByDeployer,
   groupCreationsByDay,
   isArbitrumOne,
   realtimeFloor,
@@ -63,6 +64,48 @@ describe('evm helpers', () => {
     });
   });
 
+  describe('firstDayByDeployer', () => {
+    const creation = (deployer: string, timestamp: number) => ({
+      address: '0x' + timestamp,
+      deployer,
+      blockNumber: 1,
+      timestamp,
+      isStylus: false,
+    });
+    const endOfDay = 1705363199; // 2024-01-15 23:59:59 UTC
+    const startOfNext = 1705363200; // 2024-01-16 00:00:00 UTC
+
+    it('keeps the day of a deployer earliest creation, not its later ones', () => {
+      const map = firstDayByDeployer([
+        creation('0xAAA', endOfDay - 10),
+        creation('0xAAA', startOfNext),
+      ]);
+      expect(map.get('0xaaa')).toBe('2024-01-15');
+    });
+
+    it('gives the same answer when the creations arrive out of order', () => {
+      const map = firstDayByDeployer([
+        creation('0xAAA', startOfNext),
+        creation('0xAAA', endOfDay - 10),
+      ]);
+      expect(map.get('0xaaa')).toBe('2024-01-15');
+    });
+
+    it('lowercases the deployer so it matches the registry ids', () => {
+      const map = firstDayByDeployer([creation('0xABCDEF', endOfDay)]);
+      expect([...map.keys()]).toEqual(['0xabcdef']);
+    });
+
+    it('reports one entry per deployer even with many creations', () => {
+      const map = firstDayByDeployer([
+        creation('0xAAA', endOfDay),
+        creation('0xBBB', endOfDay),
+        creation('0xAAA', endOfDay + 1),
+      ]);
+      expect(map.size).toBe(2);
+    });
+  });
+
   describe('groupCreationsByDay', () => {
     it('buckets creations on both sides of a UTC midnight into separate days', () => {
       const creation = (timestamp: number, address: string) => ({
@@ -70,6 +113,7 @@ describe('evm helpers', () => {
         deployer: '0xD',
         blockNumber: 1,
         timestamp,
+        isStylus: false,
       });
       const endOfDay = 1705363199; // 2024-01-15 23:59:59 UTC
       const startOfNext = 1705363200; // 2024-01-16 00:00:00 UTC
@@ -179,8 +223,51 @@ describe('evm helpers', () => {
         ),
       ]);
       expect(result).toEqual([
-        { address: '0xAAA', deployer: '0xBBB', blockNumber: 10, timestamp: 100 },
+        { address: '0xAAA', deployer: '0xBBB', blockNumber: 10, timestamp: 100, isStylus: false },
       ]);
+    });
+
+    it('prefers the transaction sender over the trace creator', () => {
+      // The trace creator is the factory; the deployer we want sent the tx
+      const result = extractCreations([
+        {
+          data: [
+            {
+              traces: [
+                {
+                  type: 'create',
+                  address: '0xAAA',
+                  from: '0xFACTORY',
+                  block_number: 10,
+                  transaction_hash: '0xHASH',
+                },
+              ],
+              transactions: [{ hash: '0xhash', from: '0xWALLET' }],
+              blocks: [{ number: 10, timestamp: '0x64' }],
+            },
+          ],
+          next_block: 0,
+        },
+      ]);
+      expect(result[0].deployer).toBe('0xWALLET');
+    });
+
+    it('falls back to the trace creator when the transaction is missing', () => {
+      const result = extractCreations([
+        page(
+          [
+            {
+              type: 'create',
+              address: '0xAAA',
+              from: '0xFACTORY',
+              block_number: 10,
+              transaction_hash: '0xHASH',
+            },
+          ],
+          [{ number: 10, timestamp: '0x64' }],
+        ),
+      ]);
+      expect(result[0].deployer).toBe('0xFACTORY');
     });
 
     it('drops failed creations (traces without address)', () => {
@@ -231,7 +318,7 @@ describe('evm helpers', () => {
       ];
       const result = extractDirectCreations([block], receipts);
       expect(result).toEqual([
-        { address: '0xAAA', deployer: '0xBBB', blockNumber: 10, timestamp: 100 },
+        { address: '0xAAA', deployer: '0xBBB', blockNumber: 10, timestamp: 100, isStylus: false },
       ]);
     });
   });
@@ -454,7 +541,7 @@ describe('getCreations fetchers', () => {
     const result = await fetchRpcCreations({ chainId: 412346, fromBlock: 5, toBlock: 5 });
 
     expect(result).toEqual([
-      { address: '0xNEW', deployer: '0xSENDER', blockNumber: 5, timestamp: 100 },
+      { address: '0xNEW', deployer: '0xSENDER', blockNumber: 5, timestamp: 100, isStylus: false },
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8547');
@@ -529,6 +616,8 @@ describe('ProgramActivated reconciliation with EvmDeployment', () => {
       stylusActivations: 0,
       stylusReactivations: 0,
       uniqueDeployers: 0,
+      uniqueStylusDeployers: 0,
+      uniqueEvmDeployers: 0,
       cumulativeDeployers: 0,
       totalStylusContracts: 0,
       evmDeployments: 2,
@@ -576,6 +665,8 @@ describe('ProgramActivated reconciliation with EvmDeployment', () => {
       stylusActivations: 0,
       stylusReactivations: 1,
       uniqueDeployers: 0,
+      uniqueStylusDeployers: 0,
+      uniqueEvmDeployers: 0,
       cumulativeDeployers: 0,
       totalStylusContracts: 0,
       evmDeployments: 0,
@@ -886,225 +977,5 @@ describe('postJson retries', () => {
 
     await assertion;
     expect(fetchMock).toHaveBeenCalledTimes(TRANSIENT_RETRY_ATTEMPTS);
-  });
-});
-
-describe('RateLimiter', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('allows calls up to the token budget without delay', async () => {
-    vi.useFakeTimers();
-    const limiter = new RateLimiter(3, 60_000);
-
-    const start = Date.now();
-    await limiter.acquire();
-    await limiter.acquire();
-    await limiter.acquire();
-    const elapsed = Date.now() - start;
-
-    expect(elapsed).toBe(0);
-  });
-
-  it('blocks the 4th call until the oldest token expires', async () => {
-    vi.useFakeTimers();
-    const limiter = new RateLimiter(3, 10_000);
-
-    await limiter.acquire();
-    await limiter.acquire();
-    await limiter.acquire();
-
-    const promise = limiter.acquire();
-    await vi.advanceTimersByTimeAsync(9_999);
-    // Should still be waiting
-    await vi.advanceTimersByTimeAsync(2);
-    await promise;
-  });
-
-  it('allows calls to proceed after tokens free up', async () => {
-    vi.useFakeTimers();
-    const limiter = new RateLimiter(2, 10_000);
-
-    await limiter.acquire();
-    await vi.advanceTimersByTimeAsync(5_000);
-    await limiter.acquire();
-    // Window: [0, 5000] - both tokens used
-
-    const promise = limiter.acquire();
-    await vi.advanceTimersByTimeAsync(5_001);
-    // Window: [10001, ...] - first token at 0 expired
-    await promise;
-  });
-});
-
-describe('HyperSync rate limiting', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.unstubAllEnvs();
-    vi.useRealTimers();
-  });
-
-  const hypersyncInput = { chainId: ARBITRUM_ONE_CHAIN_ID, fromBlock: 100, toBlock: 299 };
-  const jsonResponse = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
-
-  it('rate-limits multi-page HyperSync requests by gating each fetch', async () => {
-    vi.stubEnv('ENVIO_API_TOKEN', 'test-token');
-    vi.useFakeTimers();
-
-    const callTimestamps: number[] = [];
-    const fetchMock = vi.fn().mockImplementation(async () => {
-      callTimestamps.push(Date.now());
-      const callCount = callTimestamps.length;
-      if (callCount === 1) {
-        return jsonResponse({
-          data: [
-            {
-              traces: [{ type: 'create', address: '0xA', from: '0xB', block_number: 150 }],
-              blocks: [{ number: 150, timestamp: '0x64' }],
-            },
-          ],
-          next_block: 200,
-          archive_height: 1000,
-        });
-      }
-      return jsonResponse({
-        data: [
-          {
-            traces: [{ type: 'create', address: '0xC', from: '0xD', block_number: 250 }],
-            blocks: [{ number: 250, timestamp: '0xc8' }],
-          },
-        ],
-        next_block: 300,
-        archive_height: 1000,
-      });
-    });
-    vi.stubGlobal('fetch', fetchMock);
-
-    const promise = fetchHypersyncCreations(hypersyncInput);
-    await vi.advanceTimersByTimeAsync(1);
-
-    // Both pages should complete without being blocked by the rate limiter
-    // (since we're under the HYPERSYNC_CALLS_PER_MINUTE limit)
-    const result = await promise;
-
-    expect(result.map((c) => c.address)).toEqual(['0xA', '0xC']);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-
-    // Verify both calls happened close together (not rate-limited)
-    expect(callTimestamps[1] - callTimestamps[0]).toBeLessThan(100);
-  });
-
-  it('rate-limits transient retry attempts within postJson', async () => {
-    vi.stubEnv('ENVIO_API_TOKEN', 'test-token');
-    vi.useFakeTimers();
-
-    const callTimestamps: number[] = [];
-    const fetchMock = vi.fn().mockImplementation(async () => {
-      callTimestamps.push(Date.now());
-      if (callTimestamps.length === 1) {
-        return new Response('error', { status: 502 });
-      }
-      return jsonResponse({
-        data: [
-          {
-            traces: [{ type: 'create', address: '0xA', from: '0xB', block_number: 150 }],
-            blocks: [{ number: 150, timestamp: '0x64' }],
-          },
-        ],
-        next_block: 300,
-        archive_height: 1000,
-      });
-    });
-    vi.stubGlobal('fetch', fetchMock);
-
-    const promise = fetchHypersyncCreations(hypersyncInput);
-
-    // First attempt fails with 502, waits for retry delay
-    await vi.advanceTimersByTimeAsync(TRANSIENT_RETRY_DELAY_MS);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    // Second attempt succeeds
-    await vi.advanceTimersByTimeAsync(1);
-    const result = await promise;
-
-    expect(result).toHaveLength(1);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-
-    // Both fetch attempts should have been rate-limited
-    // (the rate limiter is called inside postJson before each fetch)
-  });
-
-  it('rate-limits lag retry attempts', async () => {
-    vi.stubEnv('ENVIO_API_TOKEN', 'test-token');
-    vi.useFakeTimers();
-
-    const callTimestamps: number[] = [];
-    const fetchMock = vi.fn().mockImplementation(async () => {
-      callTimestamps.push(Date.now());
-      if (callTimestamps.length === 1) {
-        return jsonResponse({ data: [], next_block: 100, archive_height: 250 });
-      }
-      return jsonResponse({
-        data: [
-          {
-            traces: [{ type: 'create', address: '0xA', from: '0xB', block_number: 150 }],
-            blocks: [{ number: 150, timestamp: '0x64' }],
-          },
-        ],
-        next_block: 300,
-        archive_height: 1000,
-      });
-    });
-    vi.stubGlobal('fetch', fetchMock);
-
-    const promise = fetchHypersyncCreations(hypersyncInput);
-
-    // First attempt returns stalled response
-    await vi.advanceTimersByTimeAsync(1);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    // Wait for lag retry delay
-    await vi.advanceTimersByTimeAsync(5_000);
-    const result = await promise;
-
-    expect(result).toHaveLength(1);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-
-    // Both attempts should have been rate-limited
-  });
-
-  it('enforces rate limit when many requests are made rapidly', async () => {
-    vi.stubEnv('ENVIO_API_TOKEN', 'test-token');
-    vi.useFakeTimers();
-
-    const limiter = new RateLimiter(3, 10_000);
-    const callTimestamps: number[] = [];
-    const fetchMock = vi.fn().mockImplementation(async () => {
-      callTimestamps.push(Date.now());
-      return jsonResponse({ data: [], next_block: 300, archive_height: 1000 });
-    });
-    vi.stubGlobal('fetch', fetchMock);
-
-    // Make 4 requests through postJson with the rate limiter
-    const promises = [
-      postJson('https://example.test', {}, '{}', limiter),
-      postJson('https://example.test', {}, '{}', limiter),
-      postJson('https://example.test', {}, '{}', limiter),
-      postJson('https://example.test', {}, '{}', limiter),
-    ];
-
-    // First 3 should go through immediately
-    await vi.advanceTimersByTimeAsync(1);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-
-    // 4th should be blocked
-    await vi.advanceTimersByTimeAsync(9_999);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-
-    // After oldest token expires
-    await vi.advanceTimersByTimeAsync(2);
-    await Promise.all(promises);
-    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });

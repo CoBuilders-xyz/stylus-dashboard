@@ -1,5 +1,6 @@
 import {
   RATE_LIMIT_JITTER_MS,
+  REQUEST_TIMEOUT_MS,
   TRANSIENT_RETRY_ATTEMPTS,
   TRANSIENT_RETRY_DELAY_MS,
 } from '../config.js';
@@ -10,31 +11,32 @@ export function hexToNumber(hex: string): number {
   return Number.parseInt(hex, 16);
 }
 
-// Token-bucket rate limiter: allows up to `tokens` calls per rolling `windowMs`.
-// When no tokens are available, acquires slot by sleeping until one frees up.
+// Shared rolling-window limiter. Callers reuse one instance so retries and
+// pagination consume the same request budget as initial attempts.
 export class RateLimiter {
   private timestamps: number[] = [];
 
   constructor(
-    private readonly tokens: number,
+    private readonly calls: number,
     private readonly windowMs: number,
-  ) {}
+  ) {
+    if (!Number.isInteger(calls) || calls <= 0 || !Number.isFinite(windowMs) || windowMs <= 0) {
+      throw new Error('RateLimiter requires positive calls and windowMs values');
+    }
+  }
 
   async acquire(): Promise<void> {
-    const now = Date.now();
-    // Remove timestamps outside the current window
-    this.timestamps = this.timestamps.filter((ts) => now - ts < this.windowMs);
+    while (true) {
+      const now = Date.now();
+      this.timestamps = this.timestamps.filter((timestamp) => now - timestamp < this.windowMs);
 
-    if (this.timestamps.length < this.tokens) {
-      this.timestamps.push(now);
-      return;
+      if (this.timestamps.length < this.calls) {
+        this.timestamps.push(now);
+        return;
+      }
+
+      await sleep(this.windowMs - (now - this.timestamps[0]));
     }
-
-    // Window is full: wait until the oldest token expires
-    const oldestTs = this.timestamps[0];
-    const waitMs = this.windowMs - (now - oldestTs) + 1;
-    await sleep(waitMs);
-    return this.acquire();
   }
 }
 
@@ -51,30 +53,46 @@ function retryDelayMs(res: Response | null, attempt: number): number {
   return TRANSIENT_RETRY_DELAY_MS * attempt;
 }
 
+export type PostJsonResult = {
+  ok: boolean;
+  status: number;
+  body: string;
+};
+
 // POST with retries on network errors and 429/5xx. Anything else comes back
 // for the caller to judge. Without this, one flaky upstream response would
 // kill the whole indexer process.
-// Optional rateLimiter: if provided, acquires a token before each fetch attempt.
+// Each attempt downloads the whole body under one REQUEST_TIMEOUT_MS
+// deadline, so a hung connection throws here and gets retried instead of
+// stalling the sync forever.
 export async function postJson(
   url: string,
   headers: Record<string, string>,
   body: string,
   rateLimiter?: RateLimiter,
-): Promise<Response> {
+): Promise<PostJsonResult> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= TRANSIENT_RETRY_ATTEMPTS; attempt++) {
     let res: Response | null = null;
     try {
-      if (rateLimiter) {
-        await rateLimiter.acquire();
+      await rateLimiter?.acquire();
+      res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      const resBody = await res.text();
+      if (res.status === 429 || res.status >= 500) {
+        lastError = new Error(`Request to ${url} failed: ${res.status} ${resBody}`);
+      } else {
+        return { ok: res.ok, status: res.status, body: resBody };
       }
-      res = await fetch(url, { method: 'POST', headers, body });
-      if (res.status !== 429 && res.status < 500) {
-        return res;
-      }
-      lastError = new Error(`Request to ${url} failed: ${res.status} ${await res.text()}`);
     } catch (err) {
-      lastError = err;
+      lastError =
+        err instanceof DOMException && err.name === 'TimeoutError'
+          ? new Error(`Request to ${url} timed out after ${REQUEST_TIMEOUT_MS}ms`, { cause: err })
+          : err;
       res = null;
     }
     if (attempt < TRANSIENT_RETRY_ATTEMPTS) {
