@@ -7,7 +7,7 @@ import {
   type RpcBlock,
   type RpcReceipt,
 } from '../helpers/evm.js';
-import { postJson, sleep } from '../helpers/utils.js';
+import { postJson, sleep, RateLimiter } from '../helpers/utils.js';
 import {
   DEFAULT_DEVNODE_RPC_URL,
   HYPERSYNC_CALLS_PER_MINUTE,
@@ -15,6 +15,10 @@ import {
   LAG_RETRY_DELAY_MS,
   hypersyncTracesUrl,
 } from '../config.js';
+
+// Shared rate limiter for all HyperSync HTTP requests across effect invocations.
+// Limits to HYPERSYNC_CALLS_PER_MINUTE requests per rolling minute.
+const hypersyncRateLimiter = new RateLimiter(HYPERSYNC_CALLS_PER_MINUTE, 60_000);
 
 type CreationsInput = {
   chainId: number;
@@ -32,9 +36,7 @@ export async function fetchHypersyncCreations(input: CreationsInput): Promise<Ev
   }
 
   const url = hypersyncTracesUrl(input.chainId);
-  // Extracted per page and dropped. Keeping the raw pages for a whole window
-  // is what ran the process out of memory.
-  const creations: EvmCreation[] = [];
+  const pages: HypersyncPage[] = [];
   let fromBlock = input.fromBlock;
   let lagRetries = 0;
 
@@ -49,21 +51,17 @@ export async function fetchHypersyncCreations(input: CreationsInput): Promise<Ev
         from_block: fromBlock,
         to_block: input.toBlock + 1,
         traces: [{ type: ['create'] }],
-        // Brings in the transaction behind each trace, the only way to get the
-        // deployer rather than the factory that ran the creation.
-        join_mode: 'JoinAll',
         field_selection: {
-          // `code` is the deployed bytecode.
-          trace: ['type', 'address', 'from', 'block_number', 'transaction_hash', 'code'],
-          transaction: ['hash', 'from'],
+          trace: ['type', 'address', 'from', 'block_number'],
           block: ['number', 'timestamp'],
         },
       }),
+      hypersyncRateLimiter,
     );
     if (!res.ok) {
-      throw new Error(`HyperSync traces query failed: ${res.status} ${res.body}`);
+      throw new Error(`HyperSync traces query failed: ${res.status} ${await res.text()}`);
     }
-    const page = JSON.parse(res.body) as HypersyncPage;
+    const page = (await res.json()) as HypersyncPage;
     if (typeof page?.next_block !== 'number') {
       throw new Error('HyperSync response is missing next_block');
     }
@@ -76,14 +74,12 @@ export async function fetchHypersyncCreations(input: CreationsInput): Promise<Ev
       await sleep(LAG_RETRY_DELAY_MS);
       continue;
     }
-    for (const creation of extractCreations([page])) {
-      creations.push(creation);
-    }
+    pages.push(page);
     fromBlock = page.next_block;
     lagRetries = 0;
   }
 
-  return creations;
+  return extractCreations(pages);
 }
 
 type RpcCall = { method: string; params: unknown[] };
@@ -103,9 +99,9 @@ async function rpcBatch<T>(calls: RpcCall[]): Promise<T[]> {
     ),
   );
   if (!res.ok) {
-    throw new Error(`RPC batch failed: ${res.status} ${res.body}`);
+    throw new Error(`RPC batch failed: ${res.status} ${await res.text()}`);
   }
-  const results = JSON.parse(res.body) as { id: number; result?: T; error?: { message: string } }[];
+  const results = (await res.json()) as { id: number; result?: T; error?: { message: string } }[];
   const byId = new Map(results.map((r) => [r.id, r]));
   return calls.map((call, id) => {
     const entry = byId.get(id);
@@ -161,7 +157,6 @@ const creationsOutput = () =>
       deployer: S.string,
       blockNumber: S.number,
       timestamp: S.number,
-      isStylus: S.boolean,
     }),
   );
 
