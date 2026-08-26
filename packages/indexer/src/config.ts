@@ -1,5 +1,6 @@
 export const ARBITRUM_ONE_CHAIN_ID = 42161;
 export const STYLUS_DEPLOYER_ADDRESS = '0xcecba2f1dc234f70dd89f2041029807f8d03a990';
+export const STYLUS_CODE_PREFIX = '0xeff000';
 
 export const DEPLOYER_STYLUS = 'stylus';
 export const DEPLOYER_EVM = 'evm';

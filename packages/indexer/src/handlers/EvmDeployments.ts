@@ -32,7 +32,8 @@ async function indexCreations(
   const creations = await context.effect(getCreations, { chainId, fromBlock, toBlock });
 
   const candidates = creations.filter(
-    (creation) => creation.deployer.toLowerCase() !== STYLUS_DEPLOYER_ADDRESS,
+    (creation) =>
+      !creation.isStylus && creation.deployer.toLowerCase() !== STYLUS_DEPLOYER_ADDRESS,
   );
   const ids = candidates.map((creation) => creation.address.toLowerCase());
   // Issued in one tick so envio batches them into two queries for the

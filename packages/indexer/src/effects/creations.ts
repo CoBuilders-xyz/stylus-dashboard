@@ -53,7 +53,8 @@ export async function fetchHypersyncCreations(input: CreationsInput): Promise<Ev
         // deployer rather than the factory that ran the creation.
         join_mode: 'JoinAll',
         field_selection: {
-          trace: ['type', 'address', 'from', 'block_number', 'transaction_hash'],
+          // `code` is the deployed bytecode.
+          trace: ['type', 'address', 'from', 'block_number', 'transaction_hash', 'code'],
           transaction: ['hash', 'from'],
           block: ['number', 'timestamp'],
         },
@@ -162,6 +163,7 @@ export const getCreations = createEffect(
         deployer: S.string,
         blockNumber: S.number,
         timestamp: S.number,
+        isStylus: S.boolean,
       }),
     ),
     rateLimit: false,

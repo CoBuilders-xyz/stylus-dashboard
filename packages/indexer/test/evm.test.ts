@@ -67,6 +67,7 @@ describe('evm helpers', () => {
       deployer,
       blockNumber: 1,
       timestamp,
+      isStylus: false,
     });
     const endOfDay = 1705363199; // 2024-01-15 23:59:59 UTC
     const startOfNext = 1705363200; // 2024-01-16 00:00:00 UTC
@@ -109,6 +110,7 @@ describe('evm helpers', () => {
         deployer: '0xD',
         blockNumber: 1,
         timestamp,
+        isStylus: false,
       });
       const endOfDay = 1705363199; // 2024-01-15 23:59:59 UTC
       const startOfNext = 1705363200; // 2024-01-16 00:00:00 UTC
@@ -218,7 +220,7 @@ describe('evm helpers', () => {
         ),
       ]);
       expect(result).toEqual([
-        { address: '0xAAA', deployer: '0xBBB', blockNumber: 10, timestamp: 100 },
+        { address: '0xAAA', deployer: '0xBBB', blockNumber: 10, timestamp: 100, isStylus: false },
       ]);
     });
 
@@ -313,7 +315,7 @@ describe('evm helpers', () => {
       ];
       const result = extractDirectCreations([block], receipts);
       expect(result).toEqual([
-        { address: '0xAAA', deployer: '0xBBB', blockNumber: 10, timestamp: 100 },
+        { address: '0xAAA', deployer: '0xBBB', blockNumber: 10, timestamp: 100, isStylus: false },
       ]);
     });
   });
@@ -536,7 +538,7 @@ describe('getCreations fetchers', () => {
     const result = await fetchRpcCreations({ chainId: 412346, fromBlock: 5, toBlock: 5 });
 
     expect(result).toEqual([
-      { address: '0xNEW', deployer: '0xSENDER', blockNumber: 5, timestamp: 100 },
+      { address: '0xNEW', deployer: '0xSENDER', blockNumber: 5, timestamp: 100, isStylus: false },
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8547');

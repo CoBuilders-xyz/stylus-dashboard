@@ -1,6 +1,11 @@
 import { getDayId } from './stats.js';
 import { hexToNumber } from './utils.js';
-import { ARBITRUM_ONE_CHAIN_ID, HISTORICAL_END_BLOCK, HISTORICAL_WINDOW } from '../config.js';
+import {
+  ARBITRUM_ONE_CHAIN_ID,
+  HISTORICAL_END_BLOCK,
+  HISTORICAL_WINDOW,
+  STYLUS_CODE_PREFIX,
+} from '../config.js';
 
 export function isArbitrumOne(chainId: number): boolean {
   return chainId === ARBITRUM_ONE_CHAIN_ID;
@@ -11,6 +16,7 @@ export type EvmCreation = {
   deployer: string;
   blockNumber: number;
   timestamp: number;
+  isStylus: boolean;
 };
 
 type HypersyncTrace = {
@@ -19,6 +25,7 @@ type HypersyncTrace = {
   from?: string;
   block_number?: number;
   transaction_hash?: string;
+  code?: string;
 };
 
 type HypersyncTransaction = {
@@ -168,6 +175,7 @@ export function extractCreations(pages: HypersyncPage[]): EvmCreation[] {
           deployer: senders.get((trace.transaction_hash ?? '').toLowerCase()) ?? trace.from,
           blockNumber: trace.block_number,
           timestamp,
+          isStylus: (trace.code ?? '').toLowerCase().startsWith(STYLUS_CODE_PREFIX),
         });
       }
     }
@@ -201,6 +209,7 @@ export function extractDirectCreations(
       deployer: receipt.from,
       blockNumber,
       timestamp,
+      isStylus: false,
     });
   }
   return creations.sort((a, b) => a.blockNumber - b.blockNumber);
