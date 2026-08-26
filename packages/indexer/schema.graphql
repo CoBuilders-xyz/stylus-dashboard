@@ -57,7 +57,7 @@ type CacheEvent @entity {
 type EvmDeployment @entity {
   "Address of the deployed contract"
   id: ID!
-  "Address that created the contract (tx sender or creating contract)"
+  "Wallet address that sent the transaction the contract was created in"
   deployer: String! @index
   "Block number of the deployment"
   blockNumber: Int!
@@ -71,6 +71,8 @@ type EvmDeployment @entity {
 type DeployerRegistry @entity {
   "Deployer wallet address"
   id: ID!
+  "What this address has deployed so far: stylus, evm, or both. Both sides record the wallet that sent the transaction, not the contract that ran the creation."
+  deployerType: String! @index
 }
 
 "Singleton (id: 'global') with ecosystem-wide running totals"
@@ -92,8 +94,12 @@ type DailyStats @entity {
   stylusActivations: Int!
   "Number of reactivations/keepalives on this day"
   stylusReactivations: Int!
-  "Number of first-time deployer addresses on this day"
+  "Number of first-time deployer addresses on this day. Stylus only, same as uniqueStylusDeployers"
   uniqueDeployers: Int!
+  "Number of addresses deploying their first Stylus contract on this day"
+  uniqueStylusDeployers: Int!
+  "Number of addresses deploying their first EVM contract on this day"
+  uniqueEvmDeployers: Int!
   "Cumulative count of unique deployers up to this day"
   cumulativeDeployers: Int!
   "Cumulative total of Stylus contracts up to this day"

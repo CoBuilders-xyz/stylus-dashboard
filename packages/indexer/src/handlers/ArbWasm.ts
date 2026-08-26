@@ -6,6 +6,7 @@ import {
   EXPIRY_SECONDS,
   SECONDS_PER_DAY,
 } from '../helpers/stats.js';
+import { DEPLOYER_BOTH, DEPLOYER_EVM, DEPLOYER_STYLUS } from '../config.js';
 
 // --- ArbWasm: ProgramActivated ---
 indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ event, context }) => {
@@ -50,9 +51,16 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
     contractId: programId,
   });
 
-  const isNewDeployer = !isReactivation && !(await context.DeployerRegistry.get(deployer));
+  // Registered as `evm` means it has never deployed Stylus, so it is still new
+  // here. Without that, uniqueDeployers would start counting EVM deployers too.
+  const registered = await context.DeployerRegistry.get(deployer);
+  const isNewDeployer =
+    !isReactivation && (!registered || registered.deployerType === DEPLOYER_EVM);
   if (isNewDeployer) {
-    context.DeployerRegistry.set({ id: deployer });
+    context.DeployerRegistry.set({
+      id: deployer,
+      deployerType: registered ? DEPLOYER_BOTH : DEPLOYER_STYLUS,
+    });
   }
 
   const evmDeployment = await context.EvmDeployment.get(programId);
@@ -112,6 +120,7 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
       stylusActivations: existingStats.stylusActivations + (isReactivation ? 0 : 1),
       stylusReactivations: existingStats.stylusReactivations + (isReactivation ? 1 : 0),
       uniqueDeployers: existingStats.uniqueDeployers + (isNewDeployer ? 1 : 0),
+      uniqueStylusDeployers: existingStats.uniqueStylusDeployers + (isNewDeployer ? 1 : 0),
       cumulativeDeployers: cumulativeDeployers,
       totalStylusContracts: existingStats.totalStylusContracts + (isReactivation ? 0 : 1),
     });
@@ -121,6 +130,7 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
       stylusActivations: isReactivation ? 0 : 1,
       stylusReactivations: isReactivation ? 1 : 0,
       uniqueDeployers: isNewDeployer ? 1 : 0,
+      uniqueStylusDeployers: isNewDeployer ? 1 : 0,
       cumulativeDeployers: cumulativeDeployers,
       totalStylusContracts: isReactivation ? 0 : 1,
       totalEvmContracts: totalEvmContracts,

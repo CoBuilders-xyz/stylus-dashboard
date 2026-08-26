@@ -24,7 +24,13 @@ type HypersyncTrace = {
   address?: string;
   from?: string;
   block_number?: number;
+  transaction_hash?: string;
   code?: string;
+};
+
+type HypersyncTransaction = {
+  hash?: string;
+  from?: string;
 };
 
 type HypersyncBlock = {
@@ -33,7 +39,11 @@ type HypersyncBlock = {
 };
 
 export type HypersyncPage = {
-  data?: { traces?: HypersyncTrace[]; blocks?: HypersyncBlock[] }[];
+  data?: {
+    traces?: HypersyncTrace[];
+    blocks?: HypersyncBlock[];
+    transactions?: HypersyncTransaction[];
+  }[];
   next_block: number;
   archive_height?: number;
 };
@@ -87,6 +97,21 @@ export function groupCreationsByDay(creations: EvmCreation[]): DayBucket[] {
   return [...byDay.values()];
 }
 
+// The day a deployer counts against is the day of its earliest creation in
+// this window. Tracking the earliest timestamp rather than the first one seen
+// keeps the answer the same whatever order the creations arrive in.
+export function firstDayByDeployer(creations: EvmCreation[]): Map<string, string> {
+  const earliest = new Map<string, number>();
+  for (const creation of creations) {
+    const deployer = creation.deployer.toLowerCase();
+    const seen = earliest.get(deployer);
+    if (seen === undefined || creation.timestamp < seen) {
+      earliest.set(deployer, creation.timestamp);
+    }
+  }
+  return new Map([...earliest].map(([deployer, timestamp]) => [deployer, getDayId(timestamp)]));
+}
+
 // First block the realtime scan owns: right after the historical boundary,
 // or the chain start when it begins above the boundary.
 export function realtimeFloor(startBlock: number): number {
@@ -121,6 +146,19 @@ export function extractCreations(pages: HypersyncPage[]): EvmCreation[] {
     }
   }
 
+  // The trace's own `from` is the factory for internal creations, and on
+  // Arbitrum One every creation is one. The transaction sender is the deployer.
+  const senders = new Map<string, string>();
+  for (const page of pages) {
+    for (const batch of page.data ?? []) {
+      for (const transaction of batch.transactions ?? []) {
+        if (transaction.hash && transaction.from) {
+          senders.set(transaction.hash.toLowerCase(), transaction.from);
+        }
+      }
+    }
+  }
+
   const creations: EvmCreation[] = [];
   for (const page of pages) {
     for (const batch of page.data ?? []) {
@@ -134,7 +172,7 @@ export function extractCreations(pages: HypersyncPage[]): EvmCreation[] {
         }
         creations.push({
           address: trace.address,
-          deployer: trace.from,
+          deployer: senders.get((trace.transaction_hash ?? '').toLowerCase()) ?? trace.from,
           blockNumber: trace.block_number,
           timestamp,
           isStylus: (trace.code ?? '').toLowerCase().startsWith(STYLUS_CODE_PREFIX),
