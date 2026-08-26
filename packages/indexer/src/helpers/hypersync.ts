@@ -48,9 +48,9 @@ async function fetchHyperSyncTransactionsTo(
       }),
     );
     if (!res.ok) {
-      throw new Error(`HyperSync query failed: ${res.status} ${await res.text()}`);
+      throw new Error(`HyperSync query failed: ${res.status} ${res.body}`);
     }
-    const page = (await res.json()) as TxPage;
+    const page = JSON.parse(res.body) as TxPage;
     if (typeof page?.next_block !== 'number') {
       throw new Error('HyperSync response is missing next_block');
     }

@@ -108,6 +108,8 @@ describe('processActivityBatch', () => {
       stylusActivations: 5,
       stylusReactivations: 1,
       uniqueDeployers: 2,
+      uniqueStylusDeployers: 2,
+      uniqueEvmDeployers: 0,
       cumulativeDeployers: 3,
       totalStylusContracts: 5,
       evmDeployments: 0,
