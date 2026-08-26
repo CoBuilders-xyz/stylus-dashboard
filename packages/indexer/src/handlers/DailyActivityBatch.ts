@@ -1,5 +1,6 @@
 // handlers/DailyActivityBatch.ts
 import { indexer } from 'envio';
+import { isArbitrumOne } from '../helpers/evm';
 import { getTransactionsTo } from '../helpers/hypersync';
 import { getDayId, newDailyStats } from '../helpers/stats';
 
@@ -96,7 +97,13 @@ export async function processActivityBatch(
   });
 }
 indexer.onBlock(
-  { name: 'dailyContractActivity', where: () => ({ block: { number: { _every: BLOCK_INTERVAL } } }) },
+  {
+    name: 'dailyContractActivity',
+    where: ({ chain }) =>
+      isArbitrumOne(chain.id)
+        ? { block: { number: { _every: BLOCK_INTERVAL } } }
+        : false,
+  },
   async ({ block, context }) => {
     const state = await context.ActivityBatchState.get(BATCH_STATE_ID);
     const fromBlock = state?.lastProcessedBlock ?? block.number - BLOCK_INTERVAL;
