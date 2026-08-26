@@ -9,8 +9,7 @@ export const DEPLOYER_BOTH = 'both';
 export const HISTORICAL_WINDOW = 10_000;
 export const REALTIME_WINDOW = 300;
 // Must stay aligned with the mainnet start_block: (HISTORICAL_END_BLOCK - start_block) % HISTORICAL_WINDOW === 0
-// Bump this close to the head before a sync: past it, windows are 33x smaller.
-export const HISTORICAL_END_BLOCK = 498_000_000;
+export const HISTORICAL_END_BLOCK = 490_000_000;
 
 export const DEFAULT_DEVNODE_RPC_URL = 'http://localhost:8547';
 export const hypersyncTracesUrl = (chainId: number) =>
@@ -18,11 +17,6 @@ export const hypersyncTracesUrl = (chainId: number) =>
 
 export const LAG_RETRY_ATTEMPTS = 10;
 export const LAG_RETRY_DELAY_MS = 5_000;
-export const TRANSIENT_RETRY_ATTEMPTS = 8;
+export const TRANSIENT_RETRY_ATTEMPTS = 5;
 export const TRANSIENT_RETRY_DELAY_MS = 2_000;
-export const RATE_LIMIT_JITTER_MS = 1_000;
 export const REQUEST_TIMEOUT_MS = 30_000;
-
-// A metered token gets 30 HyperSync requests a minute, shared with envio's
-// own event sync.
-export const HYPERSYNC_CALLS_PER_MINUTE = 25;
