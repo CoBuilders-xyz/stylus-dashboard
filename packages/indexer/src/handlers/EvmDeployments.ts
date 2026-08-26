@@ -1,5 +1,5 @@
 import { indexer, type EvmOnBlockContext } from 'envio';
-import { getCreations } from '../effects/creations.js';
+import { getHypersyncCreations, getRpcCreations } from '../effects/creations.js';
 import { newDailyStats } from '../helpers/stats.js';
 import {
   DEPLOYER_BOTH,
@@ -29,7 +29,10 @@ async function indexCreations(
   fromBlock: number,
   toBlock: number,
 ): Promise<void> {
-  const creations = await context.effect(getCreations, { chainId, fromBlock, toBlock });
+  const creations = await context.effect(
+    isArbitrumOne(chainId) ? getHypersyncCreations : getRpcCreations,
+    { chainId, fromBlock, toBlock },
+  );
 
   const candidates = creations.filter(
     (creation) =>

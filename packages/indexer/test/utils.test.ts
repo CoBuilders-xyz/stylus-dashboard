@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { postJson } from '../src/helpers/utils';
+import { postJson, RateLimiter } from '../src/helpers/utils';
 import { REQUEST_TIMEOUT_MS, TRANSIENT_RETRY_ATTEMPTS } from '../src/config';
 
 // AbortSignal.timeout uses an internal timer that vitest's fake timers
@@ -79,5 +79,42 @@ describe('postJson', () => {
 
     expect(await promise).toEqual({ ok: true, status: 200, body: 'late body' });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('acquires a rate-limit slot for every retry attempt', async () => {
+    vi.useFakeTimers();
+    const limiter = new RateLimiter(10, 1_000);
+    const acquireSpy = vi.spyOn(limiter, 'acquire');
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response('upstream error', { status: 502 }))
+        .mockResolvedValueOnce(new Response('ok', { status: 200 })),
+    );
+
+    const promise = postJson('https://example.test', {}, '{}', limiter);
+    await vi.runAllTimersAsync();
+
+    expect(await promise).toEqual({ ok: true, status: 200, body: 'ok' });
+    expect(acquireSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits for the rolling window when the request budget is exhausted', async () => {
+    vi.useFakeTimers();
+    const limiter = new RateLimiter(2, 1_000);
+
+    await limiter.acquire();
+    await limiter.acquire();
+    let acquired = false;
+    const pending = limiter.acquire().then(() => {
+      acquired = true;
+    });
+
+    await vi.advanceTimersByTimeAsync(999);
+    expect(acquired).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await pending;
+    expect(acquired).toBe(true);
   });
 });

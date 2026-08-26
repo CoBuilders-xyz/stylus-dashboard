@@ -6,8 +6,10 @@ import {
   HISTORICAL_WINDOW,
   REALTIME_WINDOW,
   STYLUS_DEPLOYER_ADDRESS,
+  TRANSIENT_RETRY_ATTEMPTS,
+  TRANSIENT_RETRY_DELAY_MS,
 } from '../src/config';
-import { hexToNumber } from '../src/helpers/utils';
+import { hexToNumber, postJson } from '../src/helpers/utils';
 import {
   assertHistoricalAlignment,
   extractCreations,
@@ -27,7 +29,8 @@ import { stubBlock } from './support/rpcStub';
 import '../src/handlers/ArbWasm.js';
 import '../src/handlers/EvmDeployments.js';
 
-const MAINNET_START_BLOCK = 240_000_000;
+// Follows start_block in config.arbitrum-one.yaml.
+const MAINNET_START_BLOCK = 249_710_000;
 
 const CODEHASH = '0x' + 'ab'.repeat(32);
 const MODULE_HASH = '0x' + 'cd'.repeat(32);
@@ -908,5 +911,71 @@ describe('devnode onBlock indexing', () => {
 
     const globalStats = await testIndexer.GlobalStats.getOrThrow('global');
     expect(globalStats.totalEvmContracts).toBe(1);
+  });
+});
+
+describe('postJson retries', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  const rateLimited = (reset: string) =>
+    new Response('', { status: 429, headers: { 'x-ratelimit-reset': reset } });
+  const ok = () => new Response('{}', { status: 200 });
+
+  it('waits out the window that x-ratelimit-reset reports', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValueOnce(rateLimited('45')).mockResolvedValueOnce(ok());
+    vi.stubGlobal('fetch', fetchMock);
+
+    const pending = postJson('https://example.test', {}, '{}');
+
+    // The fixed backoff would have retried at 2s; the header asks for 45.
+    await vi.advanceTimersByTimeAsync(44_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(2_000);
+    await expect(pending).resolves.toMatchObject({ status: 200 });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back to the fixed backoff on 5xx, which carries no reset header', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('boom', { status: 503 }))
+      .mockResolvedValueOnce(ok());
+    vi.stubGlobal('fetch', fetchMock);
+
+    const pending = postJson('https://example.test', {}, '{}');
+    await vi.advanceTimersByTimeAsync(TRANSIENT_RETRY_DELAY_MS);
+
+    await expect(pending).resolves.toMatchObject({ status: 200 });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns other non-ok responses without retrying', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('nope', { status: 401 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(postJson('https://example.test', {}, '{}')).resolves.toMatchObject({
+      status: 401,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives up after the attempt budget', async () => {
+    vi.useFakeTimers();
+    // A fresh Response per attempt: the body can only be read once.
+    const fetchMock = vi.fn().mockImplementation(async () => rateLimited('1'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const pending = postJson('https://example.test', {}, '{}');
+    const assertion = expect(pending).rejects.toThrow('429');
+    await vi.advanceTimersByTimeAsync(TRANSIENT_RETRY_ATTEMPTS * 3_000);
+
+    await assertion;
+    expect(fetchMock).toHaveBeenCalledTimes(TRANSIENT_RETRY_ATTEMPTS);
   });
 });
