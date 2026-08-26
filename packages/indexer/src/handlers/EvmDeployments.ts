@@ -2,6 +2,9 @@ import { indexer, type EvmOnBlockContext } from 'envio';
 import { getHypersyncCreations, getRpcCreations } from '../effects/creations.js';
 import { newDailyStats } from '../helpers/stats.js';
 import {
+  DEPLOYER_BOTH,
+  DEPLOYER_EVM,
+  DEPLOYER_STYLUS,
   HISTORICAL_END_BLOCK,
   HISTORICAL_WINDOW,
   REALTIME_WINDOW,
@@ -9,6 +12,7 @@ import {
 } from '../config.js';
 import {
   assertHistoricalAlignment,
+  firstDayByDeployer,
   groupCreationsByDay,
   isArbitrumOne,
   realtimeFloor,
@@ -31,7 +35,8 @@ async function indexCreations(
   );
 
   const candidates = creations.filter(
-    (creation) => creation.deployer.toLowerCase() !== STYLUS_DEPLOYER_ADDRESS,
+    (creation) =>
+      !creation.isStylus && creation.deployer.toLowerCase() !== STYLUS_DEPLOYER_ADDRESS,
   );
   const ids = candidates.map((creation) => creation.address.toLowerCase());
   // Issued in one tick so envio batches them into two queries for the
@@ -62,23 +67,45 @@ async function indexCreations(
     return;
   }
 
+  // Already `evm` or `both` means already counted. `stylus` means this is
+  // their first EVM contract, so they become `both`.
+  const firstDays = [...firstDayByDeployer(fresh)];
+  const registered = await Promise.all(
+    firstDays.map(([deployer]) => context.DeployerRegistry.get(deployer)),
+  );
+  const newEvmDeployersByDay = new Map<string, number>();
+  for (const [i, [deployer, dayId]] of firstDays.entries()) {
+    const existing = registered[i];
+    if (existing && existing.deployerType !== DEPLOYER_STYLUS) {
+      continue;
+    }
+    context.DeployerRegistry.set({
+      id: deployer,
+      deployerType: existing ? DEPLOYER_BOTH : DEPLOYER_EVM,
+    });
+    newEvmDeployersByDay.set(dayId, (newEvmDeployersByDay.get(dayId) ?? 0) + 1);
+  }
+
   const globalStats = await context.GlobalStats.get('global');
   let totalEvmContracts = globalStats?.totalEvmContracts ?? 0;
 
   for (const { dayId, count, timestamp } of groupCreationsByDay(fresh)) {
     totalEvmContracts += count;
+    const newEvmDeployers = newEvmDeployersByDay.get(dayId) ?? 0;
     const existingStats = await context.DailyStats.get(dayId);
     if (existingStats) {
       context.DailyStats.set({
         ...existingStats,
         evmDeployments: existingStats.evmDeployments + count,
         totalEvmContracts: totalEvmContracts,
+        uniqueEvmDeployers: existingStats.uniqueEvmDeployers + newEvmDeployers,
       });
     } else {
       context.DailyStats.set({
         ...newDailyStats(dayId, timestamp, globalStats),
         evmDeployments: count,
         totalEvmContracts: totalEvmContracts,
+        uniqueEvmDeployers: newEvmDeployers,
       });
     }
   }
