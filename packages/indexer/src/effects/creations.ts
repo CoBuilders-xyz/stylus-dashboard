@@ -2,23 +2,19 @@ import { createEffect, S } from 'envio';
 import {
   extractCreations,
   extractDirectCreations,
+  isArbitrumOne,
   type EvmCreation,
   type HypersyncPage,
   type RpcBlock,
   type RpcReceipt,
 } from '../helpers/evm.js';
-import { postJson, RateLimiter, sleep } from '../helpers/utils.js';
+import { postJson, sleep } from '../helpers/utils.js';
 import {
   DEFAULT_DEVNODE_RPC_URL,
-  HYPERSYNC_CALLS_PER_MINUTE,
   LAG_RETRY_ATTEMPTS,
   LAG_RETRY_DELAY_MS,
   hypersyncTracesUrl,
 } from '../config.js';
-
-// Envio rate-limits effect invocations, while this shared limiter also covers
-// pagination and transient retries performed inside a single invocation.
-const hypersyncRateLimiter = new RateLimiter(HYPERSYNC_CALLS_PER_MINUTE, 60_000);
 
 type CreationsInput = {
   chainId: number;
@@ -63,7 +59,6 @@ export async function fetchHypersyncCreations(input: CreationsInput): Promise<Ev
           block: ['number', 'timestamp'],
         },
       }),
-      hypersyncRateLimiter,
     );
     if (!res.ok) {
       throw new Error(`HyperSync traces query failed: ${res.status} ${res.body}`);
@@ -152,46 +147,28 @@ export async function fetchRpcCreations(input: CreationsInput): Promise<EvmCreat
   return extractDirectCreations(presentBlocks, receipts);
 }
 
-// One instance per effect: createEffect attaches metadata to the schema.
-const creationsInput = () => ({
-  chainId: S.number,
-  fromBlock: S.number,
-  toBlock: S.number,
-});
-
-const creationsOutput = () =>
-  S.array(
-    S.schema({
-      address: S.string,
-      deployer: S.string,
-      blockNumber: S.number,
-      timestamp: S.number,
-      isStylus: S.boolean,
-    }),
-  );
-
 // Cached: after a restart, already-scanned windows replay from the cache
-// instead of hitting the upstream again. Capped because the preload pass
-// fires the whole batch at once and the token allows 30 requests a minute.
-export const getHypersyncCreations = createEffect(
+// instead of hitting the upstream again.
+export const getCreations = createEffect(
   {
-    name: 'getHypersyncCreations',
-    input: creationsInput(),
-    output: creationsOutput(),
-    rateLimit: { calls: HYPERSYNC_CALLS_PER_MINUTE, per: 'minute' },
-    cache: true,
-  },
-  async ({ input }) => fetchHypersyncCreations(input),
-);
-
-// No cap: the devnode is not metered and runs a block at a time.
-export const getRpcCreations = createEffect(
-  {
-    name: 'getRpcCreations',
-    input: creationsInput(),
-    output: creationsOutput(),
+    name: 'getCreations',
+    input: {
+      chainId: S.number,
+      fromBlock: S.number,
+      toBlock: S.number,
+    },
+    output: S.array(
+      S.schema({
+        address: S.string,
+        deployer: S.string,
+        blockNumber: S.number,
+        timestamp: S.number,
+        isStylus: S.boolean,
+      }),
+    ),
     rateLimit: false,
     cache: true,
   },
-  async ({ input }) => fetchRpcCreations(input),
+  async ({ input }) =>
+    isArbitrumOne(input.chainId) ? fetchHypersyncCreations(input) : fetchRpcCreations(input),
 );
