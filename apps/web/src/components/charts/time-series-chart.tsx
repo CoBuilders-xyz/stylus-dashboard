@@ -42,7 +42,15 @@ export function TimeSeriesChart({
             borderRadius: 'var(--radius-md)',
           }}
         />
-        <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={false} />
+        {/* A line through a single point has no segment to draw, so show the
+            point itself when that is all there is. */}
+        <Line
+          type="monotone"
+          dataKey={dataKey}
+          stroke={color}
+          strokeWidth={2}
+          dot={data.length === 1}
+        />
       </LineChart>
     </ResponsiveContainer>
   );

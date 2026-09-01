@@ -34,6 +34,8 @@ export function BuilderGrowthChart({ data, height = 300 }: BuilderGrowthChartPro
             borderRadius: 'var(--radius-md)',
           }}
         />
+        {/* An area over a single point has no segment to draw, so show the
+            point itself when that is all there is. */}
         <Area
           type="monotone"
           dataKey="cumulativeDeployers"
@@ -42,6 +44,7 @@ export function BuilderGrowthChart({ data, height = 300 }: BuilderGrowthChartPro
           fill="var(--color-stylus)"
           fillOpacity={0.15}
           strokeWidth={2}
+          dot={data.length === 1}
         />
       </AreaChart>
     </ResponsiveContainer>
