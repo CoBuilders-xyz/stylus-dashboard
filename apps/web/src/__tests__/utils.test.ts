@@ -8,6 +8,7 @@ import {
   getContractStatus,
   getBuilderRetentionRate,
   getActivationSeries,
+  getRecentWindowStart,
 } from '../lib/utils';
 
 describe('formatNumber', () => {
@@ -303,5 +304,18 @@ describe('getActivationSeries', () => {
     getActivationSeries(input, 'all', TODAY);
 
     expect(input).toEqual(DESC_STATS);
+  });
+});
+
+describe('getRecentWindowStart', () => {
+  const DAY = 24 * 60 * 60;
+  const TODAY = 1768003200; // 2026-01-10T00:00:00Z
+
+  it('covers 30 UTC days ending today', () => {
+    expect(getRecentWindowStart(TODAY)).toBe(TODAY - 29 * DAY);
+  });
+
+  it('normalises a mid-day now to the day start', () => {
+    expect(getRecentWindowStart(TODAY + 13 * 3600)).toBe(TODAY - 29 * DAY);
   });
 });
