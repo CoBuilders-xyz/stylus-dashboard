@@ -42,10 +42,19 @@ export interface CacheEvent {
 
 export type OverviewContract = Pick<
   StylusContract,
-  'id' | 'deployer' | 'activatedAt' | 'isCached' | 'expiresAt'
+  'id' | 'deployer' | 'activatedAt' | 'isCached'
 >;
 
 export interface OverviewData {
+  StylusContract_aggregate: { aggregate: { count: number } };
+  /** Hasura returns the singleton as a list; the row is absent until the first activation. */
+  GlobalStats: { cumulativeDeployers: number }[];
   StylusContract: OverviewContract[];
   DailyStats: DailyStats[];
+}
+
+export type ActivationHistoryPoint = Pick<DailyStats, 'id' | 'date' | 'stylusActivations'>;
+
+export interface ActivationHistoryData {
+  DailyStats: ActivationHistoryPoint[];
 }

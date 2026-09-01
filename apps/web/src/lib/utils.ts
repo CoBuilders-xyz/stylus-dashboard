@@ -183,3 +183,16 @@ export function getActivationSeries(
     .sort((a, b) => a.date - b.date)
     .map((stat) => ({ date: stat.id, value: stat.stylusActivations }));
 }
+
+// The KPI row and the daily table have always summarised the last 30 days, and
+// the chart's 30d period is drawn from those same rows, so the two windows have
+// to stay the same length.
+export const RECENT_DAYS = PERIOD_DAYS['30d'];
+
+// Start of the oldest UTC day the window covers. The overview query bounds
+// DailyStats by this instead of taking the 30 most recent rows, so a stretch of
+// days with no activity can't widen the window past 30 days.
+export function getRecentWindowStart(now: number): number {
+  const today = Math.floor(now / DAY_SECONDS) * DAY_SECONDS;
+  return today - (RECENT_DAYS - 1) * DAY_SECONDS;
+}

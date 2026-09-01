@@ -3,37 +3,56 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql/client';
-import { GET_OVERVIEW_STATS } from '@/lib/graphql/queries';
+import { GET_ACTIVATION_HISTORY, GET_OVERVIEW_STATS } from '@/lib/graphql/queries';
 import { KpiGrid } from '@/components/kpi-card';
 import { PeriodToggle } from '@/components/period-toggle';
 import { QueryErrorBoundary } from '@/components/query-error-boundary';
 import { TimeSeriesChart } from '@/components/charts/time-series-chart';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { getActivationSeries, type ChartPeriod } from '@/lib/utils';
-import type { OverviewData } from '@/types';
+import { getActivationSeries, getRecentWindowStart, type ChartPeriod } from '@/lib/utils';
+import type { ActivationHistoryData, OverviewData } from '@/types';
 
-/** The KPI row and the daily table have always summarised the last 30 days. */
-const RECENT_DAYS = 30;
+/** Full history changes once a day at most, so it doesn't need the 5s cadence. */
+const HISTORY_REFETCH_MS = 60_000;
 
 export function OverviewClient({ initialData }: { initialData?: OverviewData }) {
   const [period, setPeriod] = useState<ChartPeriod>('30d');
 
+  // One clock per render, shared with the chart's window below, so a tab left
+  // open past 00:00 UTC moves both onto the new day together.
+  const now = Math.floor(Date.now() / 1000);
+  const since = getRecentWindowStart(now);
+
   const { data, isLoading, error, refetch } = useQuery<OverviewData>({
-    queryKey: ['overview'],
-    queryFn: () => graphqlClient.request(GET_OVERVIEW_STATS),
+    queryKey: ['overview', since],
+    queryFn: () => graphqlClient.request(GET_OVERVIEW_STATS, { since }),
     initialData: initialData,
     refetchInterval: 5000,
   });
 
-  const contracts = data?.StylusContract ?? [];
-  const dailyStats = data?.DailyStats ?? [];
-  const recentStats = dailyStats.slice(0, RECENT_DAYS);
+  // Only the "all" period reaches past the 30-day window the main query covers.
+  const isAllPeriod = period === 'all';
+  const {
+    data: history,
+    isLoading: isHistoryLoading,
+    error: historyError,
+  } = useQuery<ActivationHistoryData>({
+    queryKey: ['activation-history'],
+    queryFn: () => graphqlClient.request(GET_ACTIVATION_HISTORY),
+    enabled: isAllPeriod,
+    refetchInterval: HISTORY_REFETCH_MS,
+  });
 
-  const activationSeries = getActivationSeries(dailyStats, period, Math.floor(Date.now() / 1000));
+  const contracts = data?.StylusContract ?? [];
+  const recentStats = data?.DailyStats ?? [];
+
+  const seriesSource = isAllPeriod ? (history?.DailyStats ?? []) : recentStats;
+  const activationSeries = getActivationSeries(seriesSource, period, now);
+  const isChartLoading = isAllPeriod ? isHistoryLoading : isLoading;
 
   const kpis = [
-    { title: 'Stylus Contracts', value: contracts.length },
-    { title: 'Unique Deployers', value: new Set(contracts.map((c) => c.deployer)).size },
+    { title: 'Stylus Contracts', value: data?.StylusContract_aggregate.aggregate.count ?? 0 },
+    { title: 'Unique Deployers', value: data?.GlobalStats[0]?.cumulativeDeployers ?? 0 },
     { title: 'Activations', value: recentStats.reduce((sum, d) => sum + d.stylusActivations, 0) },
     {
       title: 'Reactivations',
@@ -60,8 +79,12 @@ export function OverviewClient({ initialData }: { initialData?: OverviewData }) 
           <PeriodToggle value={period} onChange={setPeriod} label="Daily activations period" />
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {isChartLoading ? (
             <p className="text-muted-foreground text-sm">Loading...</p>
+          ) : isAllPeriod && historyError ? (
+            <p className="text-muted-foreground text-sm">
+              Could not load the full activation history.
+            </p>
           ) : activationSeries.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               No activations indexed for this period.
@@ -94,7 +117,7 @@ export function OverviewClient({ initialData }: { initialData?: OverviewData }) 
                   </tr>
                 </thead>
                 <tbody>
-                  {contracts.slice(0, 10).map((c) => (
+                  {contracts.map((c) => (
                     <tr key={c.id} className="border-b border-border/50">
                       <td className="py-2 pr-4 font-mono text-xs">
                         {c.id.slice(0, 10)}...{c.id.slice(-6)}
