@@ -53,7 +53,7 @@ export interface OverviewData {
   DailyStats: DailyStats[];
 }
 
-export type ActivationHistoryPoint = Pick<DailyStats, 'id' | 'date' | 'stylusActivations'>;
+export type ActivationHistoryPoint = Pick<DailyStats, 'date' | 'stylusActivations'>;
 
 export interface ActivationHistoryData {
   DailyStats: ActivationHistoryPoint[];

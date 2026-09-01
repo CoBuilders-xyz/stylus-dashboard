@@ -156,8 +156,6 @@ export const CHART_PERIODS: ChartPeriod[] = ['7d', '30d', 'all'];
 const PERIOD_DAYS = { '7d': 7, '30d': 30 } as const;
 
 export interface DailyActivationStats {
-  /** YYYY-MM-DD, used directly as the chart's x-axis label. */
-  id: string;
   date: number;
   stylusActivations: number;
 }
@@ -177,11 +175,23 @@ export function getActivationSeries(
   const today = Math.floor(now / DAY_SECONDS) * DAY_SECONDS;
   const windowStart = period === 'all' ? -Infinity : today - (PERIOD_DAYS[period] - 1) * DAY_SECONDS;
 
-  // filter() before sort() also copies, so the query's array is never mutated.
-  return dailyStats
-    .filter((stat) => stat.date >= windowStart)
-    .sort((a, b) => a.date - b.date)
-    .map((stat) => ({ date: stat.id, value: stat.stylusActivations }));
+  const inWindow = dailyStats.filter((stat) => stat.date >= windowStart);
+  if (inWindow.length === 0) return [];
+
+  const activationsByDay = new Map(inWindow.map((stat) => [stat.date, stat.stylusActivations]));
+  // A quiet day has no row at all, so the series walks the calendar rather than
+  // the rows. Recharts spaces categories evenly, so plotting only the days that
+  // exist draws sparse activity as if it were continuous.
+  const start = period === 'all' ? Math.min(...activationsByDay.keys()) : windowStart;
+
+  const series: ActivationPoint[] = [];
+  for (let day = start; day <= today; day += DAY_SECONDS) {
+    series.push({
+      date: new Date(day * 1000).toISOString().slice(0, 10),
+      value: activationsByDay.get(day) ?? 0,
+    });
+  }
+  return series;
 }
 
 // The KPI row and the daily table have always summarised the last 30 days, and

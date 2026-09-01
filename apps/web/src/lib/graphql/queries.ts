@@ -34,7 +34,6 @@ export const GET_OVERVIEW_STATS = gql`
 export const GET_ACTIVATION_HISTORY = gql`
   query GetActivationHistory {
     DailyStats(order_by: { date: desc }) {
-      id
       date
       stylusActivations
     }
