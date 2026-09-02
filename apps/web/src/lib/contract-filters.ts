@@ -95,12 +95,23 @@ export function serializeContractFilters(filters: ContractFilters): URLSearchPar
   return params;
 }
 
+/** Commas stay commas so a link someone pastes in a chat is still readable. */
+export function filtersQuery(filters: ContractFilters): string {
+  return serializeContractFilters(filters).toString().replace(/%2C/g, ',');
+}
+
 export function filtersOffset(filters: ContractFilters): number {
   return (filters.page - 1) * CONTRACTS_PAGE_SIZE;
 }
 
-export function filtersOrderBy(filters: ContractFilters): Record<string, SortDirection>[] {
-  return [{ [filters.sort]: filters.dir }];
+/** Built here so the server render and the client refetch ask for the same rows. */
+export function contractsVariables(filters: ContractFilters, now: number) {
+  return {
+    where: buildContractsWhere(filters, now),
+    limit: CONTRACTS_PAGE_SIZE,
+    offset: filtersOffset(filters),
+    orderBy: [{ [filters.sort]: filters.dir }],
+  };
 }
 
 // Status is a function of the clock rather than a column, so each one becomes a
@@ -148,9 +159,14 @@ function parseStatus(raw: string | null): ContractStatusFilter[] {
   return CONTRACT_STATUSES.filter((status) => wanted.has(status));
 }
 
-function parseDeployer(raw: string | null): string | null {
-  const trimmed = raw?.trim() ?? '';
+/** Addresses are indexed lowercase, so that is the only form worth querying. */
+export function normalizeDeployer(raw: string): string | null {
+  const trimmed = raw.trim();
   return ADDRESS_PATTERN.test(trimmed) ? trimmed.toLowerCase() : null;
+}
+
+function parseDeployer(raw: string | null): string | null {
+  return raw === null ? null : normalizeDeployer(raw);
 }
 
 function parseDay(raw: string | null): string | null {
