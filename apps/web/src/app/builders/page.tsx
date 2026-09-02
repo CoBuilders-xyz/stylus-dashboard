@@ -6,7 +6,13 @@ import { graphqlClient } from '@/lib/graphql/client';
 import { GET_BUILDER_GROWTH, GET_BUILDER_STATS } from '@/lib/graphql/queries';
 import { KpiCard } from '@/components/kpi-card';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { formatPercent, getRatio, getRecentWindowStart, NEW_BUILDER_DAYS } from '@/lib/utils';
+import {
+  formatDay,
+  formatPercent,
+  getRatio,
+  getRecentWindowStart,
+  NEW_BUILDER_DAYS,
+} from '@/lib/utils';
 import { BuilderGrowthChart } from '@/components/charts/builder-growth-chart';
 import type { BuilderGrowthData, BuilderStatsData } from '@/types';
 
@@ -49,8 +55,6 @@ export default function BuildersPage() {
   }));
 
   const truncateAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
-  const formatDay = (timestamp: number | null) =>
-    timestamp !== null ? new Date(timestamp * 1000).toLocaleDateString() : '-';
 
   return (
     <div className="space-y-8">

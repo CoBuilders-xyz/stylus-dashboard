@@ -21,7 +21,7 @@ import {
   type ContractStatusFilter,
   type SortColumn,
 } from '@/lib/contract-filters';
-import { cn, getContractStatus, type ContractStatus } from '@/lib/utils';
+import { cn, formatDay, getContractStatus, type ContractStatus } from '@/lib/utils';
 import type { ContractsData } from '@/types';
 
 /** Long enough that typing an address writes the URL once, not forty times. */
@@ -222,9 +222,7 @@ export function ContractsClient({ filters, initialData }: ContractsClientProps) 
                               </a>
                             </td>
                             <td className="py-2 pr-4">{contract.version}</td>
-                            <td className="py-2 pr-4 text-xs">
-                              {new Date(contract.activatedAt * 1000).toLocaleDateString()}
-                            </td>
+                            <td className="py-2 pr-4 text-xs">{formatDay(contract.activatedAt)}</td>
                             <td className="py-2 pr-4">
                               <span className="inline-flex items-center gap-1.5">
                                 <span
