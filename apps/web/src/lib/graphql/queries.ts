@@ -127,7 +127,7 @@ export const GET_HEALTH_METRICS = gql`
     }
     # A null expiresAt has no expiry set yet. The comparisons above drop it on
     # their own, so the farthest-out bucket has to claim it explicitly, which is
-    # where getExpiryBucket has always put it.
+    # where the page has always counted it.
     over180d: StylusContract_aggregate(
       where: { _or: [{ expiresAt: { _is_null: true } }, { expiresAt: { _gte: $d180 } }] }
     ) {

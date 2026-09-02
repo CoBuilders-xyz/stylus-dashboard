@@ -56,21 +56,6 @@ export const EXPIRY_BUCKET_ORDER: ExpiryBucket[] = [
 ];
 
 const DAY_SECONDS = 24 * 60 * 60;
-
-export function getExpiryBucket(expiresAt: number | null, now: number): ExpiryBucket {
-  // A null expiresAt means no expiry has been set yet; bucket it with the
-  // farthest-out contracts, matching getExpiryStatus treating it as active.
-  if (expiresAt === null) return '180d+';
-
-  const secondsRemaining = expiresAt - now;
-  if (secondsRemaining < 0) return 'Expired';
-  if (secondsRemaining < 7 * DAY_SECONDS) return '<7d';
-  if (secondsRemaining < 30 * DAY_SECONDS) return '7-30d';
-  if (secondsRemaining < 90 * DAY_SECONDS) return '30-90d';
-  if (secondsRemaining < 180 * DAY_SECONDS) return '90-180d';
-  return '180d+';
-}
-
 const HOUR_SECONDS = 60 * 60;
 
 /** The counts the health query returns, one per bucket in EXPIRY_BUCKET_ORDER. */

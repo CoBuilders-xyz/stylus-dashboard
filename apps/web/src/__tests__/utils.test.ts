@@ -3,7 +3,6 @@ import {
   formatNumber,
   formatPercent,
   getExpiryStatus,
-  getExpiryBucket,
   getReactivationRateTrend,
   getContractStatus,
   getActivationSeries,
@@ -59,55 +58,6 @@ describe('getExpiryStatus', () => {
 
   it('flags an expiresAt past the window as active', () => {
     expect(getExpiryStatus(now + window + 1, now, window)).toBe('active');
-  });
-});
-
-describe('getExpiryBucket', () => {
-  const now = 1_000_000;
-  const day = 24 * 60 * 60;
-
-  it('treats a null expiresAt as the farthest-out bucket', () => {
-    expect(getExpiryBucket(null, now)).toBe('180d+');
-  });
-
-  it('buckets a past expiresAt as Expired', () => {
-    expect(getExpiryBucket(now - 1, now)).toBe('Expired');
-  });
-
-  it('buckets an expiresAt right at now as <7d, not yet Expired', () => {
-    expect(getExpiryBucket(now, now)).toBe('<7d');
-  });
-
-  it('buckets under 7 days as <7d', () => {
-    expect(getExpiryBucket(now + 7 * day - 1, now)).toBe('<7d');
-  });
-
-  it('buckets exactly 7 days as 7-30d', () => {
-    expect(getExpiryBucket(now + 7 * day, now)).toBe('7-30d');
-  });
-
-  it('buckets under 30 days as 7-30d', () => {
-    expect(getExpiryBucket(now + 30 * day - 1, now)).toBe('7-30d');
-  });
-
-  it('buckets exactly 30 days as 30-90d', () => {
-    expect(getExpiryBucket(now + 30 * day, now)).toBe('30-90d');
-  });
-
-  it('buckets under 90 days as 30-90d', () => {
-    expect(getExpiryBucket(now + 90 * day - 1, now)).toBe('30-90d');
-  });
-
-  it('buckets exactly 90 days as 90-180d', () => {
-    expect(getExpiryBucket(now + 90 * day, now)).toBe('90-180d');
-  });
-
-  it('buckets under 180 days as 90-180d', () => {
-    expect(getExpiryBucket(now + 180 * day - 1, now)).toBe('90-180d');
-  });
-
-  it('buckets exactly 180 days and beyond as 180d+', () => {
-    expect(getExpiryBucket(now + 180 * day, now)).toBe('180d+');
   });
 });
 
@@ -326,8 +276,8 @@ describe('getExpiryBreakdown', () => {
   });
 
   it('counts a contract with no expiry as active, in the farthest bucket', () => {
-    // The query puts a null expiresAt in over180d, where getExpiryBucket has
-    // always put it, so it has to reach the active slice from there.
+    // The query puts a contract with no expiry in over180d, so it has to reach
+    // the active slice from there.
     const { active, buckets } = getExpiryBreakdown({
       expired: 0,
       under7d: 0,
