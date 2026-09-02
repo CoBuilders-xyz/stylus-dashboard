@@ -11,7 +11,6 @@ import {
   contractsVariables,
   CONTRACT_STATUSES,
   CONTRACTS_PAGE_SIZE,
-  EMPTY_FILTERS,
   EXPIRING_SOON_WINDOW_SECONDS,
   filtersOffset,
   normalizeDeployer,
@@ -104,6 +103,10 @@ export function ContractsClient({ filters, initialData }: ContractsClientProps) 
     filters.status.length > 0 || filters.deployer || filters.from || filters.to,
   );
 
+  // Clearing drops what narrows the table. The order is how it is being read,
+  // not part of the search, so it survives.
+  const clearFilters = () => filterBy({ status: [], deployer: null, from: null, to: null });
+
   return (
     <div className="space-y-8">
       <div>
@@ -157,7 +160,7 @@ export function ContractsClient({ filters, initialData }: ContractsClientProps) 
               {hasFilters && (
                 <button
                   type="button"
-                  onClick={() => apply(EMPTY_FILTERS)}
+                  onClick={clearFilters}
                   className="py-1.5 text-xs text-muted-foreground hover:text-foreground"
                 >
                   Clear filters
