@@ -77,3 +77,26 @@ export interface HealthMetricsData {
   over180d: AggregateCount;
   DailyStats: ReactivationDailyStats[];
 }
+
+export interface BuilderRow {
+  id: string;
+  stylusContractCount: number;
+  firstStylusAt: number | null;
+  lastStylusAt: number | null;
+}
+
+export interface BuilderStatsData {
+  StylusContract_aggregate: AggregateCount;
+  GlobalStats: {
+    cumulativeDeployers: number;
+    repeatStylusDeployers: number;
+    retainedStylusDeployers: number;
+  }[];
+  DeployerRegistry: BuilderRow[];
+  DailyStats: { uniqueStylusDeployers: number }[];
+}
+
+export interface BuilderGrowthData {
+  /** The chart labels its x axis with the row id, which is already YYYY-MM-DD. */
+  DailyStats: { id: string; cumulativeDeployers: number }[];
+}

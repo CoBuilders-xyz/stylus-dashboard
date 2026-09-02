@@ -54,11 +54,41 @@ export const GET_CONTRACTS = gql`
 `;
 
 export const GET_BUILDER_STATS = gql`
-  query GetBuilderStats {
-    StylusContract(order_by: { activatedAt: asc }) {
-      deployer
-      activatedAt
+  query GetBuilderStats($since: Int!, $limit: Int!) {
+    StylusContract_aggregate {
+      aggregate {
+        count
+      }
     }
+    GlobalStats {
+      cumulativeDeployers
+      repeatStylusDeployers
+      retainedStylusDeployers
+    }
+    # Ordered and cut in the database, so the table's rows are the query's rows.
+    # A deployer known only from EVM has no Stylus contracts and no place here.
+    DeployerRegistry(
+      where: { stylusContractCount: { _gt: 0 } }
+      order_by: [{ stylusContractCount: desc }, { firstStylusAt: asc }]
+      limit: $limit
+    ) {
+      id
+      stylusContractCount
+      firstStylusAt
+      lastStylusAt
+    }
+    # uniqueStylusDeployers counts addresses deploying their first Stylus
+    # contract on that day, so the week's sum is the week's new builders.
+    DailyStats(where: { date: { _gte: $since } }) {
+      uniqueStylusDeployers
+    }
+  }
+`;
+
+// The growth chart is the only thing that needs the whole history, so it stays
+// off the 5-second poll the rest of the page runs on.
+export const GET_BUILDER_GROWTH = gql`
+  query GetBuilderGrowth {
     DailyStats(order_by: { date: asc }) {
       id
       cumulativeDeployers
