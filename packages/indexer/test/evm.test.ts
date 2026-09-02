@@ -790,6 +790,56 @@ describe('devnode onBlock indexing', () => {
     expect(globalStats.totalEvmContracts).toBe(1);
   });
 
+  it('keeps the Stylus totals when the deployer later turns up on the EVM side', async () => {
+    // Given a deployer whose Stylus activation is already indexed
+    const testIndexer = createTestIndexer();
+    const LATER_CONTRACT = '0x' + 'Cc'.repeat(20);
+    await processUpToActivation(testIndexer);
+    const before = await testIndexer.DeployerRegistry.getOrThrow(DEPLOYER.toLowerCase());
+    expect(before.deployerType).toBe('stylus');
+    expect(before.stylusContractCount).toBe(1);
+
+    // When that same address deploys a plain EVM contract afterwards
+    stubBlock(
+      150,
+      {
+        number: '0x96',
+        timestamp: `0x${(ACTIVATION_TS + 3600).toString(16)}`,
+        transactions: [{ hash: '0xlaterdeploy', to: null }],
+      },
+      {
+        '0xlaterdeploy': {
+          status: '0x1',
+          contractAddress: LATER_CONTRACT,
+          from: DEPLOYER,
+          blockNumber: '0x96',
+        },
+      },
+    );
+    await testIndexer.process({
+      chains: {
+        412346: {
+          simulate: [
+            {
+              contract: 'ArbWasm',
+              event: 'ProgramLifetimeExtended',
+              params: { codehash: CODEHASH, dataFee: 500n },
+              block: { number: 200, timestamp: ACTIVATION_TS + 7200 },
+              transaction: { hash: '0x' + '33'.repeat(32), from: DEPLOYER },
+            },
+          ],
+        },
+      },
+    });
+
+    // Then it covers both sides without losing what the Stylus side counted
+    const registry = await testIndexer.DeployerRegistry.getOrThrow(DEPLOYER.toLowerCase());
+    expect(registry.deployerType).toBe('both');
+    expect(registry.stylusContractCount).toBe(1);
+    expect(registry.firstStylusAt).toBe(ACTIVATION_TS);
+    expect(registry.stylusWeeks).toBe(1);
+  });
+
   it('indexes an EVM and a Stylus deployment side by side without mixing them', async () => {
     const testIndexer = createTestIndexer();
     stubDeployAt(50, DEPLOY_TS);

@@ -88,7 +88,7 @@ jobs:
       # running and not advancing. Poll the data itself.
       - name: Assert indexed data
         run: |
-          QUERY='{"query":"{ StylusContract { id deployer } StylusContract_aggregate { aggregate { count } } DailyStats { stylusActivations totalStylusContracts } }"}'
+          QUERY='{"query":"{ StylusContract { id deployer } StylusContract_aggregate { aggregate { count } } DeployerRegistry { stylusContractCount stylusWeeks } DailyStats { stylusActivations totalStylusContracts } }"}'
 
           for _ in $(seq 1 60); do
             RESULT=$(curl -sf http://localhost:8080/v1/graphql \
@@ -96,9 +96,12 @@ jobs:
 
             CONTRACTS=$(echo "$RESULT" | jq '.data.StylusContract | length // 0')
             AGGREGATED=$(echo "$RESULT" | jq '.data.StylusContract_aggregate.aggregate.count // 0')
+            # The builders page reads these off the registry, so a handler that
+            # stopped writing them has to fail here rather than on the page.
+            DEPLOYED=$(echo "$RESULT" | jq '[.data.DeployerRegistry[]?.stylusContractCount] | add // 0')
             ACTIVATIONS=$(echo "$RESULT" | jq '[.data.DailyStats[]?.stylusActivations] | add // 0')
 
-            if [ "$CONTRACTS" -gt 0 ] && [ "$AGGREGATED" -gt 0 ] && [ "$ACTIVATIONS" -gt 0 ]; then
+            if [ "$CONTRACTS" -gt 0 ] && [ "$AGGREGATED" -gt 0 ] && [ "$DEPLOYED" -gt 0 ] && [ "$ACTIVATIONS" -gt 0 ]; then
               echo "Indexed $CONTRACTS StylusContract(s), $ACTIVATIONS activation(s)"
               echo "$RESULT" | jq .
               exit 0
@@ -106,7 +109,7 @@ jobs:
             sleep 5
           done
 
-          echo "Indexer did not produce StylusContract/DailyStats rows, or _aggregate is not exposed, within 300s"
+          echo "Indexer did not produce StylusContract/DeployerRegistry/DailyStats rows, or _aggregate is not exposed, within 300s"
           exit 1
 
       - name: Indexer logs
