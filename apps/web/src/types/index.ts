@@ -58,3 +58,22 @@ export type ActivationHistoryPoint = Pick<DailyStats, 'date' | 'stylusActivation
 export interface ActivationHistoryData {
   DailyStats: ActivationHistoryPoint[];
 }
+
+export interface AggregateCount {
+  aggregate: { count: number };
+}
+
+export type ReactivationDailyStats = Pick<
+  DailyStats,
+  'date' | 'stylusActivations' | 'stylusReactivations'
+>;
+
+export interface HealthMetricsData {
+  expired: AggregateCount;
+  under7d: AggregateCount;
+  from7to30d: AggregateCount;
+  from30to90d: AggregateCount;
+  from90to180d: AggregateCount;
+  over180d: AggregateCount;
+  DailyStats: ReactivationDailyStats[];
+}

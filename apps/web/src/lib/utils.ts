@@ -71,6 +71,82 @@ export function getExpiryBucket(expiresAt: number | null, now: number): ExpiryBu
   return '180d+';
 }
 
+const HOUR_SECONDS = 60 * 60;
+
+/** The counts the health query returns, one per bucket in EXPIRY_BUCKET_ORDER. */
+export interface ExpiryBucketCounts {
+  expired: number;
+  under7d: number;
+  from7to30d: number;
+  from30to90d: number;
+  from90to180d: number;
+  over180d: number;
+}
+
+/** One bar of the expiry histogram, and the shape the chart takes. */
+export interface ExpiryBucketCount {
+  bucket: ExpiryBucket;
+  count: number;
+}
+
+export interface ExpiryBreakdown {
+  buckets: ExpiryBucketCount[];
+  active: number;
+  expiringSoon: number;
+  expired: number;
+  total: number;
+}
+
+// The six buckets already partition the table, so the status pie is three sums
+// over them rather than a second pass with its own thresholds. Deriving it this
+// way is what keeps the two charts from disagreeing.
+export function getExpiryBreakdown(counts: ExpiryBucketCounts): ExpiryBreakdown {
+  const byBucket: Record<ExpiryBucket, number> = {
+    Expired: counts.expired,
+    '<7d': counts.under7d,
+    '7-30d': counts.from7to30d,
+    '30-90d': counts.from30to90d,
+    '90-180d': counts.from90to180d,
+    '180d+': counts.over180d,
+  };
+  const active =
+    counts.from7to30d + counts.from30to90d + counts.from90to180d + counts.over180d;
+
+  return {
+    buckets: EXPIRY_BUCKET_ORDER.map((bucket) => ({ bucket, count: byBucket[bucket] })),
+    active,
+    expiringSoon: counts.under7d,
+    expired: counts.expired,
+    total: active + counts.under7d + counts.expired,
+  };
+}
+
+/** The bucket edges as absolute timestamps, which is what the query filters on. */
+export interface ExpiryBoundaries {
+  now: number;
+  d7: number;
+  d30: number;
+  d90: number;
+  d180: number;
+}
+
+// Every predicate is parameterised on now, so an unrounded value makes a new
+// query key on each 5-second poll and nothing is ever served from cache. The
+// buckets are day-scale, so an hour of drift at the edges moves no number.
+export function getExpiryBoundaries(now: number): ExpiryBoundaries {
+  const hour = Math.floor(now / HOUR_SECONDS) * HOUR_SECONDS;
+  return {
+    now: hour,
+    d7: hour + 7 * DAY_SECONDS,
+    d30: hour + 30 * DAY_SECONDS,
+    d90: hour + 90 * DAY_SECONDS,
+    d180: hour + 180 * DAY_SECONDS,
+  };
+}
+
+/** How far back getReactivationRateTrend reaches, and so how far the query has to. */
+export const REACTIVATION_DAYS = 14;
+
 export interface DailyReactivationStats {
   date: number;
   stylusActivations: number;
@@ -199,10 +275,10 @@ export function getActivationSeries(
 // to stay the same length.
 export const RECENT_DAYS = PERIOD_DAYS['30d'];
 
-// Start of the oldest UTC day the window covers. The overview query bounds
-// DailyStats by this instead of taking the 30 most recent rows, so a stretch of
-// days with no activity can't widen the window past 30 days.
-export function getRecentWindowStart(now: number): number {
+// Start of the oldest UTC day the window covers. Queries bound DailyStats by
+// this instead of taking the N most recent rows, so a stretch of days with no
+// activity can't widen the window past N days.
+export function getRecentWindowStart(now: number, days: number = RECENT_DAYS): number {
   const today = Math.floor(now / DAY_SECONDS) * DAY_SECONDS;
-  return today - (RECENT_DAYS - 1) * DAY_SECONDS;
+  return today - (days - 1) * DAY_SECONDS;
 }

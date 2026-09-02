@@ -1,12 +1,7 @@
 'use client';
 
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import type { ExpiryBucket } from '@/lib/utils';
-
-export interface ExpiryBucketCount {
-  bucket: ExpiryBucket;
-  count: number;
-}
+import type { ExpiryBucket, ExpiryBucketCount } from '@/lib/utils';
 
 const AT_RISK_COLORS: Partial<Record<ExpiryBucket, string>> = {
   Expired: 'var(--color-status-expired)',
