@@ -20,7 +20,7 @@ set -euo pipefail
 
 HASURA_ENDPOINT="${HASURA_ENDPOINT:-http://localhost:8080}"
 HASURA_ADMIN_SECRET="${HASURA_ADMIN_SECRET:-testing}"
-ENTITIES="${ENTITIES:-StylusContract}"
+ENTITIES="${ENTITIES:-StylusContract DeployerRegistry}"
 METADATA_URL="${HASURA_ENDPOINT%/}/v1/metadata"
 GRAPHQL_URL="${HASURA_ENDPOINT%/}/v1/graphql"
 
