@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql/client';
 import { GET_CONTRACTS } from '@/lib/graphql/queries';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -26,6 +26,11 @@ import type { ContractsData } from '@/types';
 
 /** Long enough that typing an address writes the URL once, not forty times. */
 const DEPLOYER_DEBOUNCE_MS = 400;
+
+// Every filter change already goes through the server, which renders the page
+// with the rows for the new URL. Without this the client would immediately ask
+// for them a second time.
+const SERVER_RENDER_STALE_MS = 30_000;
 
 const STATUS_COLORS: Record<ContractStatus, string> = {
   Active: 'var(--color-status-active)',
@@ -66,7 +71,7 @@ export function ContractsClient({ filters, initialData }: ContractsClientProps) 
     // every render and the query would refetch itself forever.
     queryFn: () => graphqlClient.request(GET_CONTRACTS, contractsVariables(filters, nowSeconds())),
     initialData,
-    placeholderData: keepPreviousData,
+    staleTime: SERVER_RENDER_STALE_MS,
   });
 
   const rows = data?.StylusContract ?? [];
