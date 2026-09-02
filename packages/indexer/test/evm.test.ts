@@ -22,7 +22,12 @@ import {
   type RpcReceipt,
 } from '../src/helpers/evm';
 import { fetchHypersyncCreations, fetchRpcCreations } from '../src/effects/creations';
-import { getDayId, getDayStartTimestamp, EXPIRY_SECONDS } from '../src/helpers/stats';
+import {
+  carryGlobalStats,
+  getDayId,
+  getDayStartTimestamp,
+  EXPIRY_SECONDS,
+} from '../src/helpers/stats';
 import { stubBlock } from './support/rpcStub';
 import '../src/handlers/ArbWasm.js';
 import '../src/handlers/EvmDeployments.js';
@@ -606,7 +611,7 @@ describe('ProgramActivated reconciliation with EvmDeployment', () => {
       timestamp: deployTimestamp,
       chainId: 412346,
     });
-    testIndexer.GlobalStats.set({ id: 'global', cumulativeDeployers: 0, totalEvmContracts: 5 });
+    testIndexer.GlobalStats.set({ ...carryGlobalStats(undefined), totalEvmContracts: 5 });
     testIndexer.DailyStats.set({
       id: getDayId(deployTimestamp),
       date: getDayStartTimestamp(deployTimestamp),
@@ -702,7 +707,7 @@ describe('ProgramActivated reconciliation with EvmDeployment', () => {
 
   it('is a no-op when the activated address was never counted as EVM', async () => {
     const testIndexer = createTestIndexer();
-    testIndexer.GlobalStats.set({ id: 'global', cumulativeDeployers: 0, totalEvmContracts: 7 });
+    testIndexer.GlobalStats.set({ ...carryGlobalStats(undefined), totalEvmContracts: 7 });
 
     await activateProgram(testIndexer, 100, ACTIVATION_TS);
 

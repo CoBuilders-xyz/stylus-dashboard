@@ -1,8 +1,11 @@
 import { indexer } from 'envio';
 import {
+  carryGlobalStats,
   getDayId,
   getDayStartTimestamp,
+  getWeekIndex,
   newDailyStats,
+  newDeployerRegistry,
   EXPIRY_SECONDS,
   SECONDS_PER_DAY,
 } from '../helpers/stats.js';
@@ -56,10 +59,32 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
   const registered = await context.DeployerRegistry.get(deployer);
   const isNewDeployer =
     !isReactivation && (!registered || registered.deployerType === DEPLOYER_EVM);
-  if (isNewDeployer) {
+
+  // The registry carries the per-deployer totals the builders page reads, so a
+  // first activation updates the row whether or not the address is new to us.
+  // A re-activation is a keepalive on an existing program, and the address
+  // sending it is not necessarily the one that deployed it, so it moves
+  // nothing here.
+  let becameRepeat = false;
+  let becameRetained = false;
+  if (!isReactivation) {
+    const previous = registered ?? newDeployerRegistry(deployer, DEPLOYER_STYLUS);
+    const week = getWeekIndex(timestamp);
+    // Blocks arrive in order, so a window differing from the last one recorded
+    // is a window this deployer has not been counted in.
+    const isNewWeek = previous.lastStylusWeek !== week;
+    becameRepeat = previous.stylusContractCount === 1;
+    becameRetained = isNewWeek && previous.stylusWeeks === 1;
+
     context.DeployerRegistry.set({
-      id: deployer,
-      deployerType: registered ? DEPLOYER_BOTH : DEPLOYER_STYLUS,
+      ...previous,
+      deployerType:
+        previous.deployerType === DEPLOYER_EVM ? DEPLOYER_BOTH : previous.deployerType,
+      stylusContractCount: previous.stylusContractCount + 1,
+      firstStylusAt: previous.firstStylusAt ?? timestamp,
+      lastStylusAt: timestamp,
+      stylusWeeks: previous.stylusWeeks + (isNewWeek ? 1 : 0),
+      lastStylusWeek: week,
     });
   }
 
@@ -103,11 +128,14 @@ indexer.onEvent({ contract: 'ArbWasm', event: 'ProgramActivated' }, async ({ eve
     }
   }
 
-  if (isNewDeployer || evmDeployment) {
+  if (isNewDeployer || evmDeployment || becameRepeat || becameRetained) {
+    const carried = carryGlobalStats(globalStats);
     context.GlobalStats.set({
-      id: 'global',
+      ...carried,
       cumulativeDeployers: cumulativeDeployers,
       totalEvmContracts: totalEvmContracts,
+      repeatStylusDeployers: carried.repeatStylusDeployers + (becameRepeat ? 1 : 0),
+      retainedStylusDeployers: carried.retainedStylusDeployers + (becameRetained ? 1 : 0),
     });
   }
 

@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { createTestIndexer } from 'envio';
-import { getDayId, getDayStartTimestamp, EXPIRY_SECONDS } from '../src/helpers/stats';
+import {
+  getDayId,
+  getDayStartTimestamp,
+  getWeekIndex,
+  newDeployerRegistry,
+  EXPIRY_SECONDS,
+  SECONDS_PER_WEEK,
+} from '../src/helpers/stats';
 import '../src/handlers/ArbWasm.js';
 
 describe('stats helpers', () => {
@@ -389,7 +396,7 @@ describe('DeployerRegistry type', () => {
   it('promotes a deployer already known from EVM to both', async () => {
     // Given a deployer the EVM handler has already registered
     const testIndexer = createTestIndexer();
-    testIndexer.DeployerRegistry.set({ id: DEPLOYER.toLowerCase(), deployerType: 'evm' });
+    testIndexer.DeployerRegistry.set(newDeployerRegistry(DEPLOYER.toLowerCase(), 'evm'));
 
     // When that same address activates a Stylus program
     await activateProgram(testIndexer);
@@ -406,7 +413,7 @@ describe('DeployerRegistry type', () => {
   it('does not re-count a deployer already covering both', async () => {
     // Given a deployer registered as both
     const testIndexer = createTestIndexer();
-    testIndexer.DeployerRegistry.set({ id: DEPLOYER.toLowerCase(), deployerType: 'both' });
+    testIndexer.DeployerRegistry.set(newDeployerRegistry(DEPLOYER.toLowerCase(), 'both'));
 
     // When it activates a Stylus program
     await activateProgram(testIndexer);
