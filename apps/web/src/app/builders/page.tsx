@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql/client';
 import { GET_BUILDER_GROWTH, GET_BUILDER_STATS } from '@/lib/graphql/queries';
@@ -124,7 +125,14 @@ export default function BuildersPage() {
                           {truncateAddress(row.id)}
                         </a>
                       </td>
-                      <td className="py-2 pr-4">{row.stylusContractCount}</td>
+                      <td className="py-2 pr-4">
+                        <Link
+                          href={`/contracts?deployer=${row.id}`}
+                          className="text-blue-600 hover:underline dark:text-blue-400"
+                        >
+                          {row.stylusContractCount}
+                        </Link>
+                      </td>
                       <td className="py-2 pr-4 text-xs">{formatDay(row.firstStylusAt)}</td>
                       <td className="py-2 text-xs">{formatDay(row.lastStylusAt)}</td>
                     </tr>
