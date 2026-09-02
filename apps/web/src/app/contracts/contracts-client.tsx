@@ -169,9 +169,11 @@ export function ContractsClient({ filters, initialData }: ContractsClientProps) 
               <p className="text-sm text-muted-foreground">
                 {isLoading
                   ? 'Loading...'
-                  : hasFilters
-                    ? 'No contracts match these filters.'
-                    : 'No Stylus contracts indexed yet. Run the seed script to generate activity.'}
+                  : total > 0
+                    ? 'This page is past the last result.'
+                    : hasFilters
+                      ? 'No contracts match these filters.'
+                      : 'No Stylus contracts indexed yet. Run the seed script to generate activity.'}
               </p>
             ) : (
               <>
