@@ -22,6 +22,13 @@ export function formatDay(timestamp: number | null): string {
   return timestamp === null ? '-' : new Date(timestamp * 1000).toISOString().slice(0, 10);
 }
 
+// Shares below 1% round away to "0.0%" under formatPercent, and the Stylus
+// share of Arbitrum deployments lives down there.
+export function formatShare(value: number): string {
+  const percent = value * 100;
+  return `${percent < 1 ? percent.toFixed(2) : percent.toFixed(1)}%`;
+}
+
 export type ExpiryStatus = 'active' | 'expiring-soon' | 'expired';
 
 export function getExpiryStatus(
@@ -62,7 +69,7 @@ export const EXPIRY_BUCKET_ORDER: ExpiryBucket[] = [
   '180d+',
 ];
 
-const DAY_SECONDS = 24 * 60 * 60;
+export const DAY_SECONDS = 24 * 60 * 60;
 const HOUR_SECONDS = 60 * 60;
 
 /** The counts the health query returns, one per bucket in EXPIRY_BUCKET_ORDER. */
@@ -212,32 +219,53 @@ export type ActivationPoint = {
   value: number;
 };
 
+export interface DailyRow {
+  date: number;
+}
+
+/** A calendar day of the window, with the row for it when there is one. */
+export type WindowedDay<T> = {
+  /** YYYY-MM-DD, used directly as the chart's x-axis label. */
+  date: string;
+  row?: T;
+};
+
+// A quiet day has no row at all, so every chart walks the calendar rather than
+// the rows. Recharts spaces categories evenly, so plotting only the days that
+// exist draws sparse activity as if it were continuous. DailyStats rows sit on
+// 00:00 UTC, so the window edge has to as well, and "all" starts at the oldest
+// row there is.
+export function getWindowedDays<T extends DailyRow>(
+  rows: T[],
+  period: ChartPeriod,
+  now: number,
+): WindowedDay<T>[] {
+  const today = Math.floor(now / DAY_SECONDS) * DAY_SECONDS;
+  const windowStart =
+    period === 'all' ? -Infinity : today - (PERIOD_DAYS[period] - 1) * DAY_SECONDS;
+
+  const inWindow = rows.filter((row) => row.date >= windowStart);
+  if (inWindow.length === 0) return [];
+
+  const byDay = new Map(inWindow.map((row) => [row.date, row]));
+  const start = period === 'all' ? Math.min(...byDay.keys()) : windowStart;
+
+  const days: WindowedDay<T>[] = [];
+  for (let day = start; day <= today; day += DAY_SECONDS) {
+    days.push({ date: new Date(day * 1000).toISOString().slice(0, 10), row: byDay.get(day) });
+  }
+  return days;
+}
+
 export function getActivationSeries(
   dailyStats: DailyActivationStats[],
   period: ChartPeriod,
   now: number,
 ): ActivationPoint[] {
-  // DailyStats rows sit on 00:00 UTC, so the window edge has to as well.
-  const today = Math.floor(now / DAY_SECONDS) * DAY_SECONDS;
-  const windowStart = period === 'all' ? -Infinity : today - (PERIOD_DAYS[period] - 1) * DAY_SECONDS;
-
-  const inWindow = dailyStats.filter((stat) => stat.date >= windowStart);
-  if (inWindow.length === 0) return [];
-
-  const activationsByDay = new Map(inWindow.map((stat) => [stat.date, stat.stylusActivations]));
-  // A quiet day has no row at all, so the series walks the calendar rather than
-  // the rows. Recharts spaces categories evenly, so plotting only the days that
-  // exist draws sparse activity as if it were continuous.
-  const start = period === 'all' ? Math.min(...activationsByDay.keys()) : windowStart;
-
-  const series: ActivationPoint[] = [];
-  for (let day = start; day <= today; day += DAY_SECONDS) {
-    series.push({
-      date: new Date(day * 1000).toISOString().slice(0, 10),
-      value: activationsByDay.get(day) ?? 0,
-    });
-  }
-  return series;
+  return getWindowedDays(dailyStats, period, now).map(({ date, row }) => ({
+    date,
+    value: row?.stylusActivations ?? 0,
+  }));
 }
 
 // The KPI row and the daily table have always summarised the last 30 days, and
