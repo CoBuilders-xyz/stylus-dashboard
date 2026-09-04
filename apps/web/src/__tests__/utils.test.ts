@@ -8,6 +8,7 @@ import {
   getContractStatus,
   getBuilderRetentionRate,
   getActivationSeries,
+  getRecentWindowStart,
 } from '../lib/utils';
 
 describe('formatNumber', () => {
@@ -251,26 +252,30 @@ describe('getBuilderRetentionRate', () => {
 describe('getActivationSeries', () => {
   const DAY = 24 * 60 * 60;
   const TODAY = 1768003200; // 2026-01-10T00:00:00Z
-  const stat = (id: string, offsetDays: number, stylusActivations: number) => ({
-    id,
+  const stat = (offsetDays: number, stylusActivations: number) => ({
     date: TODAY + offsetDays * DAY,
     stylusActivations,
   });
 
   // The query returns newest first; the chart needs oldest first.
-  const DESC_STATS = [
-    stat('2026-01-10', 0, 5),
-    stat('2026-01-04', -6, 1),
-    stat('2025-12-01', -40, 99),
-  ];
+  const DESC_STATS = [stat(0, 5), stat(-6, 1), stat(-40, 99)];
 
   it('returns nothing when there are no stats', () => {
     expect(getActivationSeries([], '7d', TODAY)).toEqual([]);
   });
 
-  it('keeps the 7d window, oldest first', () => {
+  it('returns nothing when no row falls inside the window', () => {
+    expect(getActivationSeries([stat(-40, 99)], '7d', TODAY)).toEqual([]);
+  });
+
+  it('covers the 7d window day by day, oldest first', () => {
     expect(getActivationSeries(DESC_STATS, '7d', TODAY)).toEqual([
       { date: '2026-01-04', value: 1 },
+      { date: '2026-01-05', value: 0 },
+      { date: '2026-01-06', value: 0 },
+      { date: '2026-01-07', value: 0 },
+      { date: '2026-01-08', value: 0 },
+      { date: '2026-01-09', value: 0 },
       { date: '2026-01-10', value: 5 },
     ]);
   });
@@ -278,23 +283,25 @@ describe('getActivationSeries', () => {
   it('drops rows older than the requested window', () => {
     const series = getActivationSeries(DESC_STATS, '30d', TODAY);
 
-    expect(series).toHaveLength(2);
+    expect(series).toHaveLength(30);
     expect(series.some((p) => p.value === 99)).toBe(false);
   });
 
-  it('keeps every row for the all period', () => {
-    expect(getActivationSeries(DESC_STATS, 'all', TODAY)).toEqual([
-      { date: '2025-12-01', value: 99 },
-      { date: '2026-01-04', value: 1 },
-      { date: '2026-01-10', value: 5 },
-    ]);
+  it('runs the all period from the oldest row to today', () => {
+    const series = getActivationSeries(DESC_STATS, 'all', TODAY);
+
+    expect(series).toHaveLength(41);
+    expect(series[0]).toEqual({ date: '2025-12-01', value: 99 });
+    expect(series.at(-1)).toEqual({ date: '2026-01-10', value: 5 });
+    expect(series.filter((p) => p.value > 0)).toHaveLength(3);
   });
 
   it('normalises a mid-day now to the day start', () => {
     // Without normalising, the 7d edge lands mid-afternoon and drops 2026-01-04.
     const series = getActivationSeries(DESC_STATS, '7d', TODAY + 13 * 3600);
 
-    expect(series.map((p) => p.date)).toEqual(['2026-01-04', '2026-01-10']);
+    expect(series[0].date).toBe('2026-01-04');
+    expect(series.at(-1)).toEqual({ date: '2026-01-10', value: 5 });
   });
 
   it('leaves the caller array untouched', () => {
@@ -303,5 +310,18 @@ describe('getActivationSeries', () => {
     getActivationSeries(input, 'all', TODAY);
 
     expect(input).toEqual(DESC_STATS);
+  });
+});
+
+describe('getRecentWindowStart', () => {
+  const DAY = 24 * 60 * 60;
+  const TODAY = 1768003200; // 2026-01-10T00:00:00Z
+
+  it('covers 30 UTC days ending today', () => {
+    expect(getRecentWindowStart(TODAY)).toBe(TODAY - 29 * DAY);
+  });
+
+  it('normalises a mid-day now to the day start', () => {
+    expect(getRecentWindowStart(TODAY + 13 * 3600)).toBe(TODAY - 29 * DAY);
   });
 });

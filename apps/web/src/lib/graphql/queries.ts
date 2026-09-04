@@ -1,15 +1,22 @@
 import { gql } from 'graphql-request';
 
 export const GET_OVERVIEW_STATS = gql`
-  query GetOverviewStats {
-    StylusContract(order_by: { activatedAt: desc }) {
+  query GetOverviewStats($since: Int!) {
+    StylusContract_aggregate {
+      aggregate {
+        count
+      }
+    }
+    GlobalStats {
+      cumulativeDeployers
+    }
+    StylusContract(order_by: { activatedAt: desc }, limit: 10) {
       id
       deployer
       activatedAt
       isCached
-      expiresAt
     }
-    DailyStats(order_by: { date: desc }) {
+    DailyStats(where: { date: { _gte: $since } }, order_by: { date: desc }) {
       id
       date
       stylusActivations
@@ -17,6 +24,18 @@ export const GET_OVERVIEW_STATS = gql`
       uniqueDeployers
       totalStylusContracts
       cacheEvents
+    }
+  }
+`;
+
+// The chart's "all" period is the only thing that needs the whole history, so
+// it lives in its own query and stays off the 5-second poll. Newest first: if a
+// row cap is ever configured it should drop ancient days, not recent ones.
+export const GET_ACTIVATION_HISTORY = gql`
+  query GetActivationHistory {
+    DailyStats(order_by: { date: desc }) {
+      date
+      stylusActivations
     }
   }
 `;
