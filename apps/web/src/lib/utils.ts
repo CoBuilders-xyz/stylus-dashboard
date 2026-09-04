@@ -15,6 +15,13 @@ export function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+// Days render in UTC so the server and the browser print the same one. With the
+// local timezone they disagree for anything in the first hours of a UTC day,
+// which both breaks hydration and shows a day the date filters do not mean.
+export function formatDay(timestamp: number | null): string {
+  return timestamp === null ? '-' : new Date(timestamp * 1000).toISOString().slice(0, 10);
+}
+
 export type ExpiryStatus = 'active' | 'expiring-soon' | 'expired';
 
 export function getExpiryStatus(

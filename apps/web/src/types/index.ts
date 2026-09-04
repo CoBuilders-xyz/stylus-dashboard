@@ -100,3 +100,13 @@ export interface BuilderGrowthData {
   /** The chart labels its x axis with the row id, which is already YYYY-MM-DD. */
   DailyStats: { id: string; cumulativeDeployers: number }[];
 }
+
+export type ContractRow = Pick<
+  StylusContract,
+  'id' | 'deployer' | 'version' | 'activatedAt' | 'isCached' | 'expiresAt'
+>;
+
+export interface ContractsData {
+  StylusContract: ContractRow[];
+  StylusContract_aggregate: AggregateCount;
+}

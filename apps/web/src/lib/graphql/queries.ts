@@ -40,15 +40,27 @@ export const GET_ACTIVATION_HISTORY = gql`
   }
 `;
 
+// The same $where feeds the rows and the count, so the total the page shows is
+// the total of what was asked for and not of the page that came back.
 export const GET_CONTRACTS = gql`
-  query GetContracts($limit: Int, $offset: Int, $orderBy: [StylusContract_order_by!]) {
-    StylusContract(order_by: $orderBy, limit: $limit, offset: $offset) {
+  query GetContracts(
+    $where: StylusContract_bool_exp!
+    $limit: Int!
+    $offset: Int!
+    $orderBy: [StylusContract_order_by!]
+  ) {
+    StylusContract(where: $where, order_by: $orderBy, limit: $limit, offset: $offset) {
       id
       deployer
       version
       activatedAt
       isCached
       expiresAt
+    }
+    StylusContract_aggregate(where: $where) {
+      aggregate {
+        count
+      }
     }
   }
 `;

@@ -108,6 +108,16 @@ describe('BuildersPage', () => {
     expect(within(rows[0]).getByText('4')).toBeDefined();
   });
 
+  it('sends the contract count of a row to that deployer contracts', async () => {
+    renderPage();
+
+    const table = await screen.findByRole('table');
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(within(rows[0]).getByText('4').getAttribute('href')).toBe(
+      `/contracts?deployer=${DEPLOYER_A.toLowerCase()}`,
+    );
+  });
+
   // The table renders whatever came back, so the bound lives in the request.
   it('asks for only the rows the leaderboard shows', async () => {
     renderPage();

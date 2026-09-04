@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  formatDay,
   formatNumber,
   formatPercent,
   getExpiryStatus,
@@ -33,6 +34,19 @@ describe('formatPercent', () => {
 
   it('handles zero', () => {
     expect(formatPercent(0)).toBe('0.0%');
+  });
+});
+
+describe('formatDay', () => {
+  it('names the UTC day, whatever timezone the code runs in', () => {
+    // 01:00 UTC is still the previous evening in Buenos Aires, which is what
+    // made the server and the browser print different days.
+    expect(formatDay(Date.parse('2026-09-02T01:00:00Z') / 1000)).toBe('2026-09-02');
+    expect(formatDay(Date.parse('2026-09-02T23:59:59Z') / 1000)).toBe('2026-09-02');
+  });
+
+  it('shows a dash when there is no day to show', () => {
+    expect(formatDay(null)).toBe('-');
   });
 });
 
