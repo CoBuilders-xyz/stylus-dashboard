@@ -3,11 +3,12 @@ import {
   formatNumber,
   formatPercent,
   getExpiryStatus,
-  getExpiryBucket,
   getReactivationRateTrend,
   getContractStatus,
-  getBuilderRetentionRate,
   getActivationSeries,
+  getExpiryBoundaries,
+  getExpiryBreakdown,
+  getRatio,
   getRecentWindowStart,
 } from '../lib/utils';
 
@@ -57,55 +58,6 @@ describe('getExpiryStatus', () => {
 
   it('flags an expiresAt past the window as active', () => {
     expect(getExpiryStatus(now + window + 1, now, window)).toBe('active');
-  });
-});
-
-describe('getExpiryBucket', () => {
-  const now = 1_000_000;
-  const day = 24 * 60 * 60;
-
-  it('treats a null expiresAt as the farthest-out bucket', () => {
-    expect(getExpiryBucket(null, now)).toBe('180d+');
-  });
-
-  it('buckets a past expiresAt as Expired', () => {
-    expect(getExpiryBucket(now - 1, now)).toBe('Expired');
-  });
-
-  it('buckets an expiresAt right at now as <7d, not yet Expired', () => {
-    expect(getExpiryBucket(now, now)).toBe('<7d');
-  });
-
-  it('buckets under 7 days as <7d', () => {
-    expect(getExpiryBucket(now + 7 * day - 1, now)).toBe('<7d');
-  });
-
-  it('buckets exactly 7 days as 7-30d', () => {
-    expect(getExpiryBucket(now + 7 * day, now)).toBe('7-30d');
-  });
-
-  it('buckets under 30 days as 7-30d', () => {
-    expect(getExpiryBucket(now + 30 * day - 1, now)).toBe('7-30d');
-  });
-
-  it('buckets exactly 30 days as 30-90d', () => {
-    expect(getExpiryBucket(now + 30 * day, now)).toBe('30-90d');
-  });
-
-  it('buckets under 90 days as 30-90d', () => {
-    expect(getExpiryBucket(now + 90 * day - 1, now)).toBe('30-90d');
-  });
-
-  it('buckets exactly 90 days as 90-180d', () => {
-    expect(getExpiryBucket(now + 90 * day, now)).toBe('90-180d');
-  });
-
-  it('buckets under 180 days as 90-180d', () => {
-    expect(getExpiryBucket(now + 180 * day - 1, now)).toBe('90-180d');
-  });
-
-  it('buckets exactly 180 days and beyond as 180d+', () => {
-    expect(getExpiryBucket(now + 180 * day, now)).toBe('180d+');
   });
 });
 
@@ -208,47 +160,6 @@ describe('getReactivationRateTrend', () => {
   });
 });
 
-describe('getBuilderRetentionRate', () => {
-  const week = 7 * 24 * 60 * 60;
-
-  it('returns null when there are no deployers', () => {
-    expect(getBuilderRetentionRate([])).toBeNull();
-  });
-
-  it('does not count a deployer with a single activation as retained', () => {
-    const contracts = [{ deployer: '0xA', activatedAt: 0 }];
-    expect(getBuilderRetentionRate(contracts)).toBe(0);
-  });
-
-  it('does not count multiple activations in the same week as retained', () => {
-    const contracts = [
-      { deployer: '0xA', activatedAt: 0 },
-      { deployer: '0xA', activatedAt: week - 1 },
-    ];
-    expect(getBuilderRetentionRate(contracts)).toBe(0);
-  });
-
-  it('counts a deployer active in two distinct weeks as retained', () => {
-    const contracts = [
-      { deployer: '0xA', activatedAt: 0 },
-      { deployer: '0xA', activatedAt: week },
-    ];
-    expect(getBuilderRetentionRate(contracts)).toBe(1);
-  });
-
-  it('computes the fraction across a mix of one-off and retained deployers', () => {
-    const contracts = [
-      { deployer: '0xA', activatedAt: 0 },
-      { deployer: '0xA', activatedAt: week }, // retained
-      { deployer: '0xB', activatedAt: 0 }, // one-off
-      { deployer: '0xC', activatedAt: 0 },
-      { deployer: '0xC', activatedAt: 5 * week }, // retained
-      { deployer: '0xD', activatedAt: 0 }, // one-off
-    ];
-    expect(getBuilderRetentionRate(contracts)).toBeCloseTo(0.5);
-  });
-});
-
 describe('getActivationSeries', () => {
   const DAY = 24 * 60 * 60;
   const TODAY = 1768003200; // 2026-01-10T00:00:00Z
@@ -323,5 +234,106 @@ describe('getRecentWindowStart', () => {
 
   it('normalises a mid-day now to the day start', () => {
     expect(getRecentWindowStart(TODAY + 13 * 3600)).toBe(TODAY - 29 * DAY);
+  });
+
+  // The health page asks for 14 days and the builders page for 7.
+  it('takes a shorter window when the caller needs fewer days', () => {
+    expect(getRecentWindowStart(TODAY, 14)).toBe(TODAY - 13 * DAY);
+    expect(getRecentWindowStart(TODAY, 7)).toBe(TODAY - 6 * DAY);
+  });
+});
+
+describe('getExpiryBreakdown', () => {
+  const counts = {
+    expired: 3,
+    under7d: 2,
+    from7to30d: 5,
+    from30to90d: 7,
+    from90to180d: 11,
+    over180d: 13,
+  };
+
+  it('keeps the buckets in chart order', () => {
+    expect(getExpiryBreakdown(counts).buckets).toEqual([
+      { bucket: 'Expired', count: 3 },
+      { bucket: '<7d', count: 2 },
+      { bucket: '7-30d', count: 5 },
+      { bucket: '30-90d', count: 7 },
+      { bucket: '90-180d', count: 11 },
+      { bucket: '180d+', count: 13 },
+    ]);
+  });
+
+  // The pie is three sums over the same six numbers, which is what stops it
+  // from disagreeing with the histogram.
+  it('derives the status slices from the buckets', () => {
+    const { active, expiringSoon, expired, total } = getExpiryBreakdown(counts);
+
+    expect(active).toBe(5 + 7 + 11 + 13);
+    expect(expiringSoon).toBe(2);
+    expect(expired).toBe(3);
+    expect(active + expiringSoon + expired).toBe(total);
+  });
+
+  it('counts a contract with no expiry as active, in the farthest bucket', () => {
+    // The query puts a contract with no expiry in over180d, so it has to reach
+    // the active slice from there.
+    const { active, buckets } = getExpiryBreakdown({
+      expired: 0,
+      under7d: 0,
+      from7to30d: 0,
+      from30to90d: 0,
+      from90to180d: 0,
+      over180d: 1,
+    });
+
+    expect(active).toBe(1);
+    expect(buckets.at(-1)).toEqual({ bucket: '180d+', count: 1 });
+  });
+
+  it('reports nothing indexed as a zero total', () => {
+    const zeroes = {
+      expired: 0,
+      under7d: 0,
+      from7to30d: 0,
+      from30to90d: 0,
+      from90to180d: 0,
+      over180d: 0,
+    };
+
+    expect(getExpiryBreakdown(zeroes).total).toBe(0);
+  });
+});
+
+describe('getExpiryBoundaries', () => {
+  const DAY = 24 * 60 * 60;
+  const HOUR = 60 * 60;
+  const NOON = 1768046400; // 2026-01-10T12:00:00Z
+
+  it('spaces the edges 7, 30, 90 and 180 days out', () => {
+    expect(getExpiryBoundaries(NOON)).toEqual({
+      now: NOON,
+      d7: NOON + 7 * DAY,
+      d30: NOON + 30 * DAY,
+      d90: NOON + 90 * DAY,
+      d180: NOON + 180 * DAY,
+    });
+  });
+
+  // Without this the 5-second poll makes a new query key every time and the
+  // cache never serves anything.
+  it('gives every second of the hour the same boundaries', () => {
+    expect(getExpiryBoundaries(NOON + 59 * 60 + 59)).toEqual(getExpiryBoundaries(NOON));
+    expect(getExpiryBoundaries(NOON + HOUR)).not.toEqual(getExpiryBoundaries(NOON));
+  });
+});
+
+describe('getRatio', () => {
+  it('divides', () => {
+    expect(getRatio(3, 12)).toBe(0.25);
+  });
+
+  it('returns null rather than a rate nobody has earned', () => {
+    expect(getRatio(0, 0)).toBeNull();
   });
 });

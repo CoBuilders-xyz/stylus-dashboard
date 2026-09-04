@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { createTestIndexer } from 'envio';
-import { getDayId, getDayStartTimestamp, EXPIRY_SECONDS } from '../src/helpers/stats';
+import {
+  getDayId,
+  getDayStartTimestamp,
+  getWeekIndex,
+  newDeployerRegistry,
+  EXPIRY_SECONDS,
+  SECONDS_PER_WEEK,
+} from '../src/helpers/stats';
 import '../src/handlers/ArbWasm.js';
 
 describe('stats helpers', () => {
@@ -28,6 +35,7 @@ const UNKNOWN_CODEHASH = '0x' + 'ee'.repeat(32);
 const MODULE_HASH = '0x' + 'cd'.repeat(32);
 const PROGRAM = '0x525c2aBA45F66102bC4F45cA629C93F0f0dcC9e8';
 const SECOND_PROGRAM = '0x1CBd3b2770909D4e10f157cABC84C7264073C9Ec';
+const THIRD_PROGRAM = '0x3aA3e9A5c2b9C1b8Cf12eE1B4bB59D0Db2e4D9F1';
 const DEPLOYER = '0xF39FD6e51aad88F6F4ce6aB8827279cffFb92266';
 const SECOND_DEPLOYER = '0x90F79bf6EB2c4f870365E785982E1f101E93b906';
 const CACHE_MANAGER = '0x217788c286797D56Cd59aF5e493f3699C39cbbe8';
@@ -389,7 +397,7 @@ describe('DeployerRegistry type', () => {
   it('promotes a deployer already known from EVM to both', async () => {
     // Given a deployer the EVM handler has already registered
     const testIndexer = createTestIndexer();
-    testIndexer.DeployerRegistry.set({ id: DEPLOYER.toLowerCase(), deployerType: 'evm' });
+    testIndexer.DeployerRegistry.set(newDeployerRegistry(DEPLOYER.toLowerCase(), 'evm'));
 
     // When that same address activates a Stylus program
     await activateProgram(testIndexer);
@@ -406,7 +414,7 @@ describe('DeployerRegistry type', () => {
   it('does not re-count a deployer already covering both', async () => {
     // Given a deployer registered as both
     const testIndexer = createTestIndexer();
-    testIndexer.DeployerRegistry.set({ id: DEPLOYER.toLowerCase(), deployerType: 'both' });
+    testIndexer.DeployerRegistry.set(newDeployerRegistry(DEPLOYER.toLowerCase(), 'both'));
 
     // When it activates a Stylus program
     await activateProgram(testIndexer);
@@ -436,6 +444,224 @@ describe('DeployerRegistry type', () => {
     expect(stats.uniqueStylusDeployers).toBe(2);
     expect(stats.uniqueDeployers).toBe(2);
     expect(stats.uniqueEvmDeployers).toBe(0);
+  });
+});
+
+describe('DeployerRegistry per-deployer totals', () => {
+  const NEXT_WEEK = TIMESTAMP + SECONDS_PER_WEEK;
+
+  it('counts one contract per first activation', async () => {
+    // Given a deployer that has activated two different programs
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+    await activate(testIndexer, {
+      program: SECOND_PROGRAM,
+      deployer: DEPLOYER,
+      blockNumber: 200,
+      timestamp: TIMESTAMP + 60,
+      codehash: '0x' + 'bb'.repeat(32),
+    });
+
+    // Then the registry holds both
+    const registry = await testIndexer.DeployerRegistry.getOrThrow(DEPLOYER.toLowerCase());
+    expect(registry.stylusContractCount).toBe(2);
+  });
+
+  it('keeps the first activation and moves the last', async () => {
+    // Given two activations a minute apart
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+    await activate(testIndexer, {
+      program: SECOND_PROGRAM,
+      deployer: DEPLOYER,
+      blockNumber: 200,
+      timestamp: TIMESTAMP + 60,
+      codehash: '0x' + 'bb'.repeat(32),
+    });
+
+    // Then the window between them is what the leaderboard shows
+    const registry = await testIndexer.DeployerRegistry.getOrThrow(DEPLOYER.toLowerCase());
+    expect(registry.firstStylusAt).toBe(TIMESTAMP);
+    expect(registry.lastStylusAt).toBe(TIMESTAMP + 60);
+  });
+
+  it('counts a 7-day window once, however many activations it holds', async () => {
+    // Given two activations inside the same window
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+    await activate(testIndexer, {
+      program: SECOND_PROGRAM,
+      deployer: DEPLOYER,
+      blockNumber: 200,
+      timestamp: TIMESTAMP + 60,
+      codehash: '0x' + 'bb'.repeat(32),
+    });
+
+    // Then the deployer has been active in one
+    const registry = await testIndexer.DeployerRegistry.getOrThrow(DEPLOYER.toLowerCase());
+    expect(registry.stylusWeeks).toBe(1);
+    expect(registry.lastStylusWeek).toBe(getWeekIndex(TIMESTAMP));
+  });
+
+  it('counts the next window when the deployer comes back', async () => {
+    // Given a deployer returning a week later
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+    await activate(testIndexer, {
+      program: SECOND_PROGRAM,
+      deployer: DEPLOYER,
+      blockNumber: 200,
+      timestamp: NEXT_WEEK,
+      codehash: '0x' + 'bb'.repeat(32),
+    });
+
+    // Then both windows count
+    const registry = await testIndexer.DeployerRegistry.getOrThrow(DEPLOYER.toLowerCase());
+    expect(registry.stylusWeeks).toBe(2);
+    expect(registry.lastStylusWeek).toBe(getWeekIndex(NEXT_WEEK));
+  });
+
+  it('leaves the totals alone on a keepalive', async () => {
+    // Given an activated program
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // When a never-seen address re-activates it a week later
+    await activate(testIndexer, {
+      program: PROGRAM,
+      deployer: SECOND_DEPLOYER,
+      blockNumber: 300,
+      timestamp: NEXT_WEEK,
+    });
+
+    // Then neither address gains a contract or a window
+    const registry = await testIndexer.DeployerRegistry.getOrThrow(DEPLOYER.toLowerCase());
+    expect(registry.stylusContractCount).toBe(1);
+    expect(registry.stylusWeeks).toBe(1);
+    expect(registry.lastStylusAt).toBe(TIMESTAMP);
+    expect(await testIndexer.DeployerRegistry.get(SECOND_DEPLOYER.toLowerCase())).toBeUndefined();
+  });
+
+  it('starts the totals for a deployer the EVM side registered first', async () => {
+    // Given an address known only from an EVM deployment
+    const testIndexer = createTestIndexer();
+    testIndexer.DeployerRegistry.set(newDeployerRegistry(DEPLOYER.toLowerCase(), 'evm'));
+
+    // When it activates its first Stylus program
+    await activateProgram(testIndexer);
+
+    // Then the Stylus totals start from that activation
+    const registry = await testIndexer.DeployerRegistry.getOrThrow(DEPLOYER.toLowerCase());
+    expect(registry.deployerType).toBe('both');
+    expect(registry.stylusContractCount).toBe(1);
+    expect(registry.firstStylusAt).toBe(TIMESTAMP);
+    expect(registry.stylusWeeks).toBe(1);
+  });
+});
+
+describe('GlobalStats builder counters', () => {
+  const secondProgramBy = (
+    testIndexer: ReturnType<typeof createTestIndexer>,
+    timestamp: number,
+  ) =>
+    activate(testIndexer, {
+      program: SECOND_PROGRAM,
+      deployer: DEPLOYER,
+      blockNumber: 200,
+      timestamp: timestamp,
+      codehash: '0x' + 'bb'.repeat(32),
+    });
+
+  it('counts no repeat builder on a first contract', async () => {
+    // Given one deployer with one contract
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+
+    // Then nobody has repeated yet
+    const globalStats = await testIndexer.GlobalStats.getOrThrow('global');
+    expect(globalStats.repeatStylusDeployers).toBe(0);
+    expect(globalStats.retainedStylusDeployers).toBe(0);
+  });
+
+  it('counts a repeat builder on the second contract, and only then', async () => {
+    // Given a deployer activating three programs in the same window
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+    await secondProgramBy(testIndexer, TIMESTAMP + 60);
+    await activate(testIndexer, {
+      program: THIRD_PROGRAM,
+      deployer: DEPLOYER,
+      blockNumber: 250,
+      timestamp: TIMESTAMP + 120,
+      codehash: '0x' + 'cc'.repeat(32),
+    });
+
+    // Then the third contract does not count them twice
+    const globalStats = await testIndexer.GlobalStats.getOrThrow('global');
+    expect(globalStats.repeatStylusDeployers).toBe(1);
+    // Same window all along, so retention has not moved
+    expect(globalStats.retainedStylusDeployers).toBe(0);
+  });
+
+  it('counts a retained builder on the second window, and only then', async () => {
+    // Given a deployer active in three consecutive windows
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+    await secondProgramBy(testIndexer, TIMESTAMP + SECONDS_PER_WEEK);
+    await activate(testIndexer, {
+      program: THIRD_PROGRAM,
+      deployer: DEPLOYER,
+      blockNumber: 250,
+      timestamp: TIMESTAMP + 2 * SECONDS_PER_WEEK,
+      codehash: '0x' + 'cc'.repeat(32),
+    });
+
+    // Then the third window does not count them twice
+    const globalStats = await testIndexer.GlobalStats.getOrThrow('global');
+    expect(globalStats.retainedStylusDeployers).toBe(1);
+  });
+
+  it('counts each deployer separately', async () => {
+    // Given two deployers, one of which comes back
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+    await secondProgramBy(testIndexer, TIMESTAMP + SECONDS_PER_WEEK);
+    await activate(testIndexer, {
+      program: THIRD_PROGRAM,
+      deployer: SECOND_DEPLOYER,
+      blockNumber: 250,
+      timestamp: TIMESTAMP + SECONDS_PER_WEEK,
+      codehash: '0x' + 'cc'.repeat(32),
+    });
+
+    // Then only the returning one is retained, out of two deployers
+    const globalStats = await testIndexer.GlobalStats.getOrThrow('global');
+    expect(globalStats.cumulativeDeployers).toBe(2);
+    expect(globalStats.repeatStylusDeployers).toBe(1);
+    expect(globalStats.retainedStylusDeployers).toBe(1);
+  });
+
+  it('leaves the counters alone when a keepalive lands', async () => {
+    // Given a deployer already counted as repeat and retained
+    const testIndexer = createTestIndexer();
+    await activateProgram(testIndexer);
+    await secondProgramBy(testIndexer, TIMESTAMP + SECONDS_PER_WEEK);
+    const before = await testIndexer.GlobalStats.getOrThrow('global');
+    expect(before.repeatStylusDeployers).toBe(1);
+    expect(before.retainedStylusDeployers).toBe(1);
+
+    // When someone else keeps that program alive
+    await activate(testIndexer, {
+      program: PROGRAM,
+      deployer: SECOND_DEPLOYER,
+      blockNumber: 300,
+      timestamp: TIMESTAMP + 2 * SECONDS_PER_WEEK,
+    });
+
+    // Then neither counter is reset
+    const globalStats = await testIndexer.GlobalStats.getOrThrow('global');
+    expect(globalStats.repeatStylusDeployers).toBe(1);
+    expect(globalStats.retainedStylusDeployers).toBe(1);
   });
 });
 

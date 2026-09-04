@@ -1,6 +1,6 @@
 import { indexer, type EvmOnBlockContext } from 'envio';
 import { getCreations } from '../effects/creations.js';
-import { newDailyStats } from '../helpers/stats.js';
+import { carryGlobalStats, newDailyStats, newDeployerRegistry } from '../helpers/stats.js';
 import {
   DEPLOYER_BOTH,
   DEPLOYER_EVM,
@@ -76,8 +76,10 @@ async function indexCreations(
     if (existing && existing.deployerType !== DEPLOYER_STYLUS) {
       continue;
     }
+    // Spread the row rather than rebuild it: promoting a Stylus deployer to
+    // `both` must not reset the totals the Stylus side keeps here.
     context.DeployerRegistry.set({
-      id: deployer,
+      ...(existing ?? newDeployerRegistry(deployer, DEPLOYER_EVM)),
       deployerType: existing ? DEPLOYER_BOTH : DEPLOYER_EVM,
     });
     newEvmDeployersByDay.set(dayId, (newEvmDeployersByDay.get(dayId) ?? 0) + 1);
@@ -108,8 +110,7 @@ async function indexCreations(
   }
 
   context.GlobalStats.set({
-    id: 'global',
-    cumulativeDeployers: globalStats?.cumulativeDeployers ?? 0,
+    ...carryGlobalStats(globalStats),
     totalEvmContracts: totalEvmContracts,
   });
 }

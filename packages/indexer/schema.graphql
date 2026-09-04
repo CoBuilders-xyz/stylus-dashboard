@@ -73,6 +73,16 @@ type DeployerRegistry @entity {
   id: ID!
   "What this address has deployed so far: stylus, evm, or both. Both sides record the wallet that sent the transaction, not the contract that ran the creation."
   deployerType: String! @index
+  "Stylus contracts this address has activated for the first time. Keepalives and re-activations of an existing program do not count."
+  stylusContractCount: Int! @index
+  "Timestamp of its first Stylus activation, unset for an address only known from EVM"
+  firstStylusAt: Int @index
+  "Timestamp of its most recent Stylus activation"
+  lastStylusAt: Int
+  "How many distinct 7-day windows since the epoch it has activated in"
+  stylusWeeks: Int!
+  "The most recent of those windows, so stylusWeeks only advances once per window"
+  lastStylusWeek: Int
 }
 
 "Singleton (id: 'global') with ecosystem-wide running totals"
@@ -82,6 +92,10 @@ type GlobalStats @entity {
   cumulativeDeployers: Int!
   "Cumulative count of EVM contract deployments"
   totalEvmContracts: Int!
+  "Deployers holding more than one Stylus contract"
+  repeatStylusDeployers: Int!
+  "Deployers that have activated in more than one 7-day window"
+  retainedStylusDeployers: Int!
 }
 
 "Aggregated daily statistics for Stylus ecosystem"

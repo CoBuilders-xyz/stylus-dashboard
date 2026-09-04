@@ -6,42 +6,41 @@ import { GET_HEALTH_METRICS } from '@/lib/graphql/queries';
 import { KpiCard } from '@/components/kpi-card';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { StatusPieChart, type StatusSlice } from '@/components/charts/status-pie-chart';
-import { ExpiryHistogram, type ExpiryBucketCount } from '@/components/charts/expiry-histogram';
+import { ExpiryHistogram } from '@/components/charts/expiry-histogram';
 import {
-  getExpiryStatus,
-  getExpiryBucket,
-  EXPIRY_BUCKET_ORDER,
-  type ExpiryBucket,
+  getExpiryBoundaries,
+  getExpiryBreakdown,
+  getRecentWindowStart,
   getReactivationRateTrend,
   formatPercent,
+  REACTIVATION_DAYS,
 } from '@/lib/utils';
-import type { DailyStats } from '@/types';
-
-const EXPIRING_SOON_WINDOW_SECONDS = 7 * 24 * 60 * 60;
-
-interface StylusContract {
-  id: string;
-  isCached: boolean;
-  activatedAt: number;
-  expiresAt: number | null;
-  lastKeepalive: number | null;
-}
-
-interface HealthMetricsData {
-  StylusContract: StylusContract[];
-  DailyStats: DailyStats[];
-}
+import type { AggregateCount, HealthMetricsData } from '@/types';
 
 export default function HealthPage() {
+  // One clock for the whole render: the expiry edges round to the hour so the
+  // poll keeps its cache key, the daily window rounds to the UTC day because
+  // that is where DailyStats rows sit.
+  const now = Math.floor(Date.now() / 1000);
+  const boundaries = getExpiryBoundaries(now);
+  const since = getRecentWindowStart(now, REACTIVATION_DAYS);
+
   const { data, isLoading, error } = useQuery<HealthMetricsData>({
-    queryKey: ['health-metrics'],
-    queryFn: () => graphqlClient.request(GET_HEALTH_METRICS),
+    queryKey: ['health-metrics', boundaries.now, since],
+    queryFn: () => graphqlClient.request(GET_HEALTH_METRICS, { ...boundaries, since }),
     refetchInterval: 5000,
   });
 
-  const contracts = data?.StylusContract ?? [];
   const dailyStats = data?.DailyStats ?? [];
-  const now = Math.floor(Date.now() / 1000);
+  const count = (bucket?: AggregateCount) => bucket?.aggregate.count ?? 0;
+  const { active, expiringSoon, expired, total, buckets } = getExpiryBreakdown({
+    expired: count(data?.expired),
+    under7d: count(data?.under7d),
+    from7to30d: count(data?.from7to30d),
+    from30to90d: count(data?.from30to90d),
+    from90to180d: count(data?.from90to180d),
+    over180d: count(data?.over180d),
+  });
 
   const { currentRate, changePoints } = getReactivationRateTrend(dailyStats, now);
   const reactivationValue = currentRate !== null ? formatPercent(currentRate) : '-';
@@ -56,38 +55,11 @@ export default function HealthPage() {
         ? 'positive'
         : 'negative';
 
-  let active = 0;
-  let expiringSoon = 0;
-  let expired = 0;
-
-  const bucketCounts: Record<ExpiryBucket, number> = {
-    Expired: 0,
-    '<7d': 0,
-    '7-30d': 0,
-    '30-90d': 0,
-    '90-180d': 0,
-    '180d+': 0,
-  };
-
-  for (const c of contracts) {
-    const status = getExpiryStatus(c.expiresAt, now, EXPIRING_SOON_WINDOW_SECONDS);
-    if (status === 'expired') expired += 1;
-    else if (status === 'expiring-soon') expiringSoon += 1;
-    else active += 1;
-
-    bucketCounts[getExpiryBucket(c.expiresAt, now)] += 1;
-  }
-
   const statusData: StatusSlice[] = [
     { status: 'Active', count: active, color: 'var(--color-status-active)' },
     { status: 'Expiring Soon', count: expiringSoon, color: 'var(--color-status-expiring)' },
     { status: 'Expired', count: expired, color: 'var(--color-status-expired)' },
   ];
-
-  const expiryHistogramData: ExpiryBucketCount[] = EXPIRY_BUCKET_ORDER.map((bucket) => ({
-    bucket,
-    count: bucketCounts[bucket],
-  }));
 
   return (
     <div className="space-y-8">
@@ -124,7 +96,7 @@ export default function HealthPage() {
           <CardContent>
             {isLoading ? (
               <p className="text-sm text-muted-foreground">Loading...</p>
-            ) : contracts.length === 0 ? (
+            ) : total === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No Stylus contracts indexed yet. Run the seed script to generate activity.
               </p>
@@ -157,12 +129,12 @@ export default function HealthPage() {
           <CardContent>
             {isLoading ? (
               <p className="text-sm text-muted-foreground">Loading...</p>
-            ) : contracts.length === 0 ? (
+            ) : total === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No Stylus contracts indexed yet. Run the seed script to generate activity.
               </p>
             ) : (
-              <ExpiryHistogram data={expiryHistogramData} />
+              <ExpiryHistogram data={buckets} />
             )}
           </CardContent>
         </Card>

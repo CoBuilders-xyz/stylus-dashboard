@@ -56,20 +56,81 @@ export const EXPIRY_BUCKET_ORDER: ExpiryBucket[] = [
 ];
 
 const DAY_SECONDS = 24 * 60 * 60;
+const HOUR_SECONDS = 60 * 60;
 
-export function getExpiryBucket(expiresAt: number | null, now: number): ExpiryBucket {
-  // A null expiresAt means no expiry has been set yet; bucket it with the
-  // farthest-out contracts, matching getExpiryStatus treating it as active.
-  if (expiresAt === null) return '180d+';
-
-  const secondsRemaining = expiresAt - now;
-  if (secondsRemaining < 0) return 'Expired';
-  if (secondsRemaining < 7 * DAY_SECONDS) return '<7d';
-  if (secondsRemaining < 30 * DAY_SECONDS) return '7-30d';
-  if (secondsRemaining < 90 * DAY_SECONDS) return '30-90d';
-  if (secondsRemaining < 180 * DAY_SECONDS) return '90-180d';
-  return '180d+';
+/** The counts the health query returns, one per bucket in EXPIRY_BUCKET_ORDER. */
+export interface ExpiryBucketCounts {
+  expired: number;
+  under7d: number;
+  from7to30d: number;
+  from30to90d: number;
+  from90to180d: number;
+  over180d: number;
 }
+
+/** One bar of the expiry histogram, and the shape the chart takes. */
+export interface ExpiryBucketCount {
+  bucket: ExpiryBucket;
+  count: number;
+}
+
+export interface ExpiryBreakdown {
+  buckets: ExpiryBucketCount[];
+  active: number;
+  expiringSoon: number;
+  expired: number;
+  total: number;
+}
+
+// The six buckets already partition the table, so the status pie is three sums
+// over them rather than a second pass with its own thresholds. Deriving it this
+// way is what keeps the two charts from disagreeing.
+export function getExpiryBreakdown(counts: ExpiryBucketCounts): ExpiryBreakdown {
+  const byBucket: Record<ExpiryBucket, number> = {
+    Expired: counts.expired,
+    '<7d': counts.under7d,
+    '7-30d': counts.from7to30d,
+    '30-90d': counts.from30to90d,
+    '90-180d': counts.from90to180d,
+    '180d+': counts.over180d,
+  };
+  const active =
+    counts.from7to30d + counts.from30to90d + counts.from90to180d + counts.over180d;
+
+  return {
+    buckets: EXPIRY_BUCKET_ORDER.map((bucket) => ({ bucket, count: byBucket[bucket] })),
+    active,
+    expiringSoon: counts.under7d,
+    expired: counts.expired,
+    total: active + counts.under7d + counts.expired,
+  };
+}
+
+/** The bucket edges as absolute timestamps, which is what the query filters on. */
+export interface ExpiryBoundaries {
+  now: number;
+  d7: number;
+  d30: number;
+  d90: number;
+  d180: number;
+}
+
+// Every predicate is parameterised on now, so an unrounded value makes a new
+// query key on each 5-second poll and nothing is ever served from cache. The
+// buckets are day-scale, so an hour of drift at the edges moves no number.
+export function getExpiryBoundaries(now: number): ExpiryBoundaries {
+  const hour = Math.floor(now / HOUR_SECONDS) * HOUR_SECONDS;
+  return {
+    now: hour,
+    d7: hour + 7 * DAY_SECONDS,
+    d30: hour + 30 * DAY_SECONDS,
+    d90: hour + 90 * DAY_SECONDS,
+    d180: hour + 180 * DAY_SECONDS,
+  };
+}
+
+/** How far back getReactivationRateTrend reaches, and so how far the query has to. */
+export const REACTIVATION_DAYS = 14;
 
 export interface DailyReactivationStats {
   date: number;
@@ -117,36 +178,14 @@ export function getReactivationRateTrend(
   return { currentRate, previousRate, changePoints };
 }
 
-export interface DeployerActivation {
-  deployer: string;
-  activatedAt: number;
-}
+/** How far back "New This Week" counts, and so how far the query has to. */
+export const NEW_BUILDER_DAYS = 7;
 
-const WEEK_SECONDS = 7 * DAY_SECONDS;
-
-// Fraction (0-1) of deployers active in more than one distinct week. Null
-// when there are no deployers to measure, same convention as
-// getReactivationRateTrend.
-export function getBuilderRetentionRate(contracts: DeployerActivation[]): number | null {
-  const weeksByDeployer = new Map<string, Set<number>>();
-
-  for (const { deployer, activatedAt } of contracts) {
-    // Fixed 7-day windows since the Unix epoch, not calendar/ISO weeks —
-    // matches the day-bucketing the indexer already uses for DailyStats.
-    const week = Math.floor(activatedAt / WEEK_SECONDS);
-    const weeks = weeksByDeployer.get(deployer);
-    if (weeks) weeks.add(week);
-    else weeksByDeployer.set(deployer, new Set([week]));
-  }
-
-  if (weeksByDeployer.size === 0) return null;
-
-  let retained = 0;
-  for (const weeks of weeksByDeployer.values()) {
-    if (weeks.size > 1) retained += 1;
-  }
-
-  return retained / weeksByDeployer.size;
+// Both builder ratios divide by the deployer count, which is zero until the
+// first activation lands. Null rather than zero, so the KPI can show a dash
+// instead of claiming a rate nobody has earned yet.
+export function getRatio(numerator: number, denominator: number): number | null {
+  return denominator > 0 ? numerator / denominator : null;
 }
 
 export type ChartPeriod = '7d' | '30d' | 'all';
@@ -199,10 +238,10 @@ export function getActivationSeries(
 // to stay the same length.
 export const RECENT_DAYS = PERIOD_DAYS['30d'];
 
-// Start of the oldest UTC day the window covers. The overview query bounds
-// DailyStats by this instead of taking the 30 most recent rows, so a stretch of
-// days with no activity can't widen the window past 30 days.
-export function getRecentWindowStart(now: number): number {
+// Start of the oldest UTC day the window covers. Queries bound DailyStats by
+// this instead of taking the N most recent rows, so a stretch of days with no
+// activity can't widen the window past N days.
+export function getRecentWindowStart(now: number, days: number = RECENT_DAYS): number {
   const today = Math.floor(now / DAY_SECONDS) * DAY_SECONDS;
-  return today - (RECENT_DAYS - 1) * DAY_SECONDS;
+  return today - (days - 1) * DAY_SECONDS;
 }
