@@ -1,7 +1,7 @@
 import { graphqlClient } from './client';
-import { GET_CONTRACTS, GET_OVERVIEW_STATS } from './queries';
+import { GET_COMPARISON_STATS, GET_CONTRACTS, GET_OVERVIEW_STATS } from './queries';
 import { contractsVariables, type ContractFilters } from '@/lib/contract-filters';
-import type { ContractsData, OverviewData } from '@/types';
+import type { ComparisonData, ContractsData, OverviewData } from '@/types';
 
 export async function fetchOverviewStats(since: number): Promise<OverviewData | undefined> {
   try {
@@ -23,6 +23,15 @@ export async function fetchContracts(
     );
   } catch (error) {
     console.error('[SSR] fetchContracts failed:', error);
+    return undefined;
+  }
+}
+
+export async function fetchComparisonStats(since: number): Promise<ComparisonData | undefined> {
+  try {
+    return await graphqlClient.request<ComparisonData>(GET_COMPARISON_STATS, { since });
+  } catch (error) {
+    console.error('[SSR] fetchComparisonStats failed:', error);
     return undefined;
   }
 }

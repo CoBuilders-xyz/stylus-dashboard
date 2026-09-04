@@ -154,3 +154,48 @@ export const GET_HEALTH_METRICS = gql`
     }
   }
 `;
+
+export const GET_COMPARISON_STATS = gql`
+  query GetComparisonStats($since: Int!) {
+    StylusContract_aggregate {
+      aggregate {
+        count
+      }
+    }
+    GlobalStats {
+      totalEvmContracts
+    }
+    stylusOnly: DeployerRegistry_aggregate(where: { deployerType: { _eq: "stylus" } }) {
+      aggregate {
+        count
+      }
+    }
+    both: DeployerRegistry_aggregate(where: { deployerType: { _eq: "both" } }) {
+      aggregate {
+        count
+      }
+    }
+    evmOnly: DeployerRegistry_aggregate(where: { deployerType: { _eq: "evm" } }) {
+      aggregate {
+        count
+      }
+    }
+    DailyStats(where: { date: { _gte: $since } }, order_by: { date: desc }) {
+      date
+      stylusActivations
+      evmDeployments
+    }
+  }
+`;
+
+// Only the comparison chart's "all" period reaches past the 30-day window, so
+// it stays in its own query and off the main poll, same split as the overview.
+export const GET_COMPARISON_HISTORY = gql`
+  query GetComparisonHistory {
+    DailyStats(order_by: { date: desc }) {
+      date
+      stylusActivations
+      evmDeployments
+    }
+  }
+`;

@@ -110,3 +110,23 @@ export interface ContractsData {
   StylusContract: ContractRow[];
   StylusContract_aggregate: AggregateCount;
 }
+
+export type DailyDeployRow = {
+  date: number;
+  stylusActivations: number;
+  evmDeployments: number;
+};
+
+export interface ComparisonData {
+  StylusContract_aggregate: AggregateCount;
+  /** Hasura returns the singleton as a list; the row is absent until the first deployment. */
+  GlobalStats: { totalEvmContracts: number }[];
+  stylusOnly: AggregateCount;
+  both: AggregateCount;
+  evmOnly: AggregateCount;
+  DailyStats: DailyDeployRow[];
+}
+
+export interface ComparisonHistoryData {
+  DailyStats: DailyDeployRow[];
+}
