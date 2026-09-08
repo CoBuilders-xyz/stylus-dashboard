@@ -1,0 +1,5 @@
+query ReportContracts($after: String!, $limit: Int!) {
+  StylusContract(where: { id: { _gt: $after } }, order_by: { id: asc }, limit: $limit) {
+    id deployer codehash activatedAt activatedBlock chainId isCached expiresAt
+  }
+}

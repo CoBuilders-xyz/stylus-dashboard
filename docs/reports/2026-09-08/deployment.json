@@ -1,0 +1,43 @@
+{
+  "observedAt": "2026-09-08T18:51:32.633218+00:00",
+  "source": "Railway CLI, read-only production status",
+  "environment": "production",
+  "services": [
+    {
+      "name": "stylus-dashboard",
+      "status": "SUCCESS",
+      "commit": "4ad27299f088397f2573a98e9d53a6b88076ba6e",
+      "image": null,
+      "branch": "main",
+      "publicDomains": [
+        "stylus-dashboard.up.railway.app"
+      ]
+    },
+    {
+      "name": "graphql-engine",
+      "status": "SUCCESS",
+      "commit": null,
+      "image": "hasura/graphql-engine:v2.43.0",
+      "branch": null,
+      "publicDomains": [
+        "stylus-dashboard-hql.up.railway.app"
+      ]
+    },
+    {
+      "name": "stylus-dashboard-indexer",
+      "status": "SUCCESS",
+      "commit": "4ad27299f088397f2573a98e9d53a6b88076ba6e",
+      "image": null,
+      "branch": "main",
+      "publicDomains": []
+    },
+    {
+      "name": "Postgres",
+      "status": "SUCCESS",
+      "commit": null,
+      "image": "ghcr.io/railwayapp-templates/postgres-ssl:18",
+      "branch": null,
+      "publicDomains": []
+    }
+  ]
+}

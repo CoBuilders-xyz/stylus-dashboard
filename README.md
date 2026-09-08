@@ -1,158 +1,97 @@
 # Stylus Ecosystem Dashboard
 
-A public dashboard providing visibility into **Stylus adoption** across Arbitrum's MultiVM stack (EVM + WASM).
+A public, open-source dashboard for **observed Stylus activation and deployment indicators on Arbitrum One**.
 
-> **Is Stylus growing? How many contracts are there? Who is building?**
-> This dashboard answers these questions with real-time on-chain data.
+**[Open the dashboard](https://stylus-dashboard.up.railway.app)** · **[Usage guide](docs/usage.md)** · **[Ecosystem report](docs/reports/2026-09-08/README.md)** · **[Documentation site](https://cobuilders-xyz.github.io/stylus-dashboard/)**
 
-## What It Shows
+![Stylus adoption overview](docs/images/overview.png)
 
-| Section | Description |
-|---------|-------------|
-| **Adoption Overview** | KPIs: total contracts, active contracts, deployers, activations, WASM share |
-| **Contract Activity** | Filterable table of all Stylus contracts with deployment and activity data |
-| **Builder Metrics** | Unique deployers over time, top deployers, retention |
-| **Stylus Health** | Activation status, time-to-expiry, reactivation rate, cache occupancy |
-| **Stylus vs Solidity** | Side-by-side comparison of deployments, activity, and growth |
+## What it shows
+
+| Section                  | Available metrics                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Overview                 | Observed Stylus contract addresses, unique activating wallets, recent activations/reactivations and daily activity |
+| Contracts                | Paginated address table with status, deployer and activation-date filters; sorting and explorer links              |
+| Builders                 | First-time and repeat activating wallets, returning-wallet ratio, growth and top deployers                         |
+| Health                   | Estimated activation expiry, expiry histogram and reactivation/keepalive rate                                      |
+| Stylus vs Solidity (EVM) | Relative observed contract counts, creation/activation series, deployment share and wallet overlap                 |
+
+**Interpretation matters:** Stylus discovery follows activation events and can miss addresses reusing activated code. Builders are wallet addresses. Active status estimates expiry, not contract usage. EVM includes every source language. Read the [methodology](docs/methodology.md) before drawing adoption conclusions.
+
+The [8 September 2026 report](docs/reports/2026-09-08/README.md) includes a frozen public-data snapshot, reproducible queries, findings and limitations. The [release record](docs/release.md) distinguishes prepared deliverables from production/publication steps still pending.
 
 ## Architecture
 
+```text
+Arbitrum One events + HyperSync creation traces
+                    ↓
+             Envio HyperIndex
+                    ↓
+                PostgreSQL
+                    ↓
+             Hasura GraphQL
+                    ↓
+          Next.js server + browser
 ```
-[Arbitrum One / Testnode]
-        │
-        ▼
-[Envio HyperIndex] ──► [PostgreSQL] ──► [Hasura GraphQL]
-                                              │
-                                              ▼
-                                    [Next.js 15 Frontend]
-                                              │
-                                              ▼
-                                        [Browser]
-```
 
-**On-chain data sources:**
-- `ArbWasm` (0x71) — `ProgramActivated`, `ProgramLifetimeExtended` events
-- `ArbWasmCache` (0x72) — `UpdateProgramCache` events
-- Contract bytecode prefix `0xEFF000` for Stylus identification
+The frontend reads GraphQL only. The indexer observes `ArbWasm` (`0x71`) activation/keepalive events, `ArbWasmCache` (`0x72`) cache events and EVM creation traces. Mainnet indexing starts at block 249,710,000. See [architecture](docs/architecture.md) for entities, windows, persistence and design decisions.
 
-## Tech Stack
+Stack: pnpm workspaces, TypeScript, Envio HyperIndex v3, PostgreSQL, Hasura, Next.js 15, React 19, TanStack Query, Tailwind CSS and Recharts. CI uses GitHub Actions, Vitest and a Nitro devnode integration job. Production runs on Railway.
 
-| Layer | Technology |
-|-------|-----------|
-| Monorepo | pnpm workspaces |
-| Indexer | Envio HyperIndex v3 |
-| Database | PostgreSQL |
-| API | Hasura GraphQL (auto-generated) |
-| Frontend | Next.js 15 (App Router) |
-| UI | Tailwind CSS + shadcn/ui |
-| Charts | Recharts |
-| Testing | Vitest + React Testing Library |
-| CI/CD | GitHub Actions |
-| Deploy | Railway |
+## Development setup
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 20+ (see `.nvmrc`)
-- pnpm 9+
-- Docker & Docker Compose
-- [Arbitrum Nitro Testnode](https://github.com/OffchainLabs/nitro-testnode) (for local Stylus testing)
-
-### Setup
+Requirements: **Node.js 22** (see `.nvmrc`), **pnpm 9.15.0**, Docker, and Foundry's `cast` for the local devnode. `cargo-stylus` plus the Rust WASM target is needed to seed actual Stylus programs; see [Contributing](CONTRIBUTING.md).
 
 ```bash
-# Clone the repository
-git clone git@github.com:CoBuilders-xyz/stylus-dashboard.git
+git clone https://github.com/CoBuilders-xyz/stylus-dashboard.git
 cd stylus-dashboard
-
-# Install dependencies
-pnpm install
-
-# Copy environment files
+pnpm install --frozen-lockfile
 cp apps/web/.env.example apps/web/.env.local
 cp packages/indexer/.env.example packages/indexer/.env
 ```
 
-### Local Development
+For frontend-only work, set `NEXT_PUBLIC_GRAPHQL_ENDPOINT` in `apps/web/.env.local` to `https://stylus-dashboard-hql.up.railway.app/v1/graphql`, then run `pnpm --filter @stylus-dashboard/web dev`. That reads public mainnet data. It needs neither Docker nor an RPC token. See the release record for the existing production Comparison permission issue.
+
+For the complete local stack, use separate terminals from the repo root:
 
 ```bash
-# 1. Start the Arbitrum testnode (in a separate terminal)
-# Assumes nitro-testnode is cloned at ../nitro-testnode
-cd ../nitro-testnode && ./test-node.bash --init --stylus
+# Terminal 1: local Nitro chain, localhost:8547
+./scripts/devnode.sh
 
-# 2. Start the indexer (auto-manages PostgreSQL on :5433 + Hasura on :8080)
-cd packages/indexer
-pnpm dev
-# GraphQL available at http://localhost:8080
+# Terminal 2: Envio, local PostgreSQL :5433 and Hasura :8080
+pnpm --filter @stylus-dashboard/indexer dev
 
-# 3. Start the frontend (in another terminal)
-cd apps/web
-pnpm dev
-# Open http://localhost:3000
+# Terminal 3: frontend, localhost:3000
+pnpm --filter @stylus-dashboard/web dev
+
+# After the devnode and indexer are ready
+pnpm seed
 ```
 
-#### Indexing Arbitrum One (mainnet)
+Keep the frontend GraphQL endpoint set to `http://localhost:8080/v1/graphql` when using local data. `config.yaml` defaults to local chain 412346. Do not run the separate `docker-compose.yml` alongside Envio's managed local Hasura on the same port.
+
+For a **separate mainnet dataset**, add an `ENVIO_API_TOKEN` to the indexer environment and select the config without overwriting the local default:
 
 ```bash
-# 1. Get a free API token at https://envio.dev/app/api-tokens
-# 2. Add it to packages/indexer/.env
-echo "ENVIO_API_TOKEN=your-token" > packages/indexer/.env
-
-# 3. Switch config to Arbitrum One
-cd packages/indexer
-cp config.arbitrum-one.yaml config.yaml
-
-# 4. Run with reset flag (fresh DB)
-pnpm dev -- -r
+pnpm --filter @stylus-dashboard/indexer dev --config config.arbitrum-one.yaml
 ```
 
-### Running Tests
+Switching an existing dataset between chains requires deliberate storage handling. Do not reset a production database as part of setup. See the [Railway deployment and recovery guide](docs/deployment.md).
 
-```bash
-# Run all tests
-pnpm test
-
-# Run tests for a specific package
-pnpm --filter @stylus-dashboard/web test
-pnpm --filter @stylus-dashboard/indexer test
-```
-
-### Linting & Type Checking
+## Validation
 
 ```bash
 pnpm lint
 pnpm typecheck
+pnpm test
+pnpm build
+
+# Read-only HTTP and public GraphQL smoke check; exits nonzero on failure
+node scripts/check-public.mjs
 ```
 
-## Project Structure
+CI runs the four pnpm checks. The separate integration job seeds a Stylus program on Nitro and verifies indexed entities and public aggregate access. [Report reproduction](docs/reports/2026-09-08/README.md#reproduce-the-results) uses Python 3; chart generation additionally uses Matplotlib.
 
-```
-stylus-dashboard/
-├── apps/
-│   └── web/                    # Next.js 15 frontend
-│       └── src/
-│           ├── app/            # Pages (route-per-section)
-│           ├── components/     # UI components + charts
-│           ├── lib/            # GraphQL client, utils
-│           └── types/          # TypeScript interfaces
-├── packages/
-│   └── indexer/                # Envio HyperIndex v3
-│       ├── config.yaml         # Contracts & events config (testnode)
-│       ├── config.arbitrum-one.yaml  # Mainnet config (HyperSync)
-│       ├── schema.graphql      # Entity definitions
-│       ├── src/handlers/       # Event handlers (auto-registered)
-│       ├── src/helpers/        # Utility functions
-│       └── abis/               # Contract ABIs
-├── .github/                    # CI workflows + templates
-├── docker-compose.yml          # Local dev infrastructure
-└── scripts/                    # Seed & utility scripts
-```
+## Contributing and license
 
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute, branching strategy, and PR workflow.
-
-## License
-
-[MIT](LICENSE)
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow and [GitHub Issues](https://github.com/CoBuilders-xyz/stylus-dashboard/issues) for bugs and proposed work. Code and the documentation package are available under the [MIT license](LICENSE). This repository supplies the dashboard portion of the Stylus fellowship deliverables; it does not claim delivery of the second tooling project.

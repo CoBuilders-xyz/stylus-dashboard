@@ -1,0 +1,67 @@
+{
+  "capturedAt": "2026-09-08T18:39:50.814Z",
+  "web": "https://stylus-dashboard.up.railway.app",
+  "endpoint": "https://stylus-dashboard-hql.up.railway.app/v1/graphql",
+  "checks": [
+    {
+      "name": "/",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "name": "/contracts",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "name": "/builders",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "name": "/health",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "name": "/comparison",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "name": "GET_OVERVIEW_STATS",
+      "ok": true
+    },
+    {
+      "name": "GET_CONTRACTS",
+      "ok": true
+    },
+    {
+      "name": "GET_BUILDER_STATS",
+      "ok": true
+    },
+    {
+      "name": "GET_HEALTH_METRICS",
+      "ok": true
+    },
+    {
+      "name": "GET_COMPARISON_STATS",
+      "ok": false,
+      "errors": [
+        "field 'DeployerRegistry_aggregate' not found in type: 'query_root'"
+      ]
+    },
+    {
+      "name": "GET_ACTIVATION_HISTORY",
+      "ok": true
+    },
+    {
+      "name": "GET_BUILDER_GROWTH",
+      "ok": true
+    },
+    {
+      "name": "GET_COMPARISON_HISTORY",
+      "ok": true
+    }
+  ]
+}

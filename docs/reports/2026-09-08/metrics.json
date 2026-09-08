@@ -1,0 +1,261 @@
+{
+  "cutoffExclusive": "2026-09-08T00:00:00+00:00",
+  "observedStylusAddresses": 1041,
+  "observedCodehashes": 1039,
+  "stylusWallets": 95,
+  "evmAddresses": 9597626,
+  "observedSharePercent": 0.010845255908971526,
+  "repeatWallets": 57,
+  "returningWallets": 24,
+  "returningPercent": 25.263157894736842,
+  "observedStylusWalletsAlsoEvm": 46,
+  "top1SharePercent": 39.28914505283382,
+  "top5SharePercent": 61.38328530259366,
+  "top10SharePercent": 74.83189241114313,
+  "estimatedExpired": 712,
+  "estimatedExpiring7d": 1,
+  "observedCached": 140,
+  "last30CompletedDays": {
+    "fromInclusive": "2026-08-09",
+    "toExclusive": "2026-09-08",
+    "stylusActivations": 15,
+    "stylusReactivations": 20,
+    "uniqueStylusDeployers": 3,
+    "evmDeployments": 950255,
+    "cacheEvents": 3,
+    "activatingWallets": 5,
+    "observedSharePercent": 0.0015784987424626684
+  },
+  "prior30CompletedDays": {
+    "fromInclusive": "2026-07-10",
+    "toExclusive": "2026-08-09",
+    "stylusActivations": 27,
+    "stylusReactivations": 0,
+    "uniqueStylusDeployers": 5,
+    "evmDeployments": 575272,
+    "cacheEvents": 10,
+    "activatingWallets": 6,
+    "observedSharePercent": 0.004693211703827053
+  },
+  "last7CompletedDays": {
+    "fromInclusive": "2026-09-01",
+    "toExclusive": "2026-09-08",
+    "stylusActivations": 2,
+    "stylusReactivations": 0,
+    "uniqueStylusDeployers": 0,
+    "evmDeployments": 128650,
+    "cacheEvents": 0,
+    "activatingWallets": 1,
+    "observedSharePercent": 0.0015545813512421105
+  },
+  "monthly": {
+    "2024-09": {
+      "activations": 33,
+      "newWallets": 11,
+      "evmCreations": 261599
+    },
+    "2024-10": {
+      "activations": 44,
+      "newWallets": 3,
+      "evmCreations": 191395
+    },
+    "2024-11": {
+      "activations": 75,
+      "newWallets": 2,
+      "evmCreations": 155516
+    },
+    "2024-12": {
+      "activations": 158,
+      "newWallets": 2,
+      "evmCreations": 321686
+    },
+    "2025-01": {
+      "activations": 109,
+      "newWallets": 0,
+      "evmCreations": 232933
+    },
+    "2025-02": {
+      "activations": 113,
+      "newWallets": 3,
+      "evmCreations": 142881
+    },
+    "2025-03": {
+      "activations": 78,
+      "newWallets": 0,
+      "evmCreations": 736413
+    },
+    "2025-04": {
+      "activations": 41,
+      "newWallets": 2,
+      "evmCreations": 425006
+    },
+    "2025-05": {
+      "activations": 26,
+      "newWallets": 3,
+      "evmCreations": 415122
+    },
+    "2025-06": {
+      "activations": 0,
+      "newWallets": 0,
+      "evmCreations": 208159
+    },
+    "2025-07": {
+      "activations": 9,
+      "newWallets": 5,
+      "evmCreations": 195469
+    },
+    "2025-08": {
+      "activations": 32,
+      "newWallets": 5,
+      "evmCreations": 172785
+    },
+    "2025-09": {
+      "activations": 17,
+      "newWallets": 3,
+      "evmCreations": 369575
+    },
+    "2025-10": {
+      "activations": 5,
+      "newWallets": 0,
+      "evmCreations": 338683
+    },
+    "2025-11": {
+      "activations": 30,
+      "newWallets": 4,
+      "evmCreations": 398151
+    },
+    "2025-12": {
+      "activations": 41,
+      "newWallets": 6,
+      "evmCreations": 264579
+    },
+    "2026-01": {
+      "activations": 13,
+      "newWallets": 6,
+      "evmCreations": 257791
+    },
+    "2026-02": {
+      "activations": 10,
+      "newWallets": 5,
+      "evmCreations": 204189
+    },
+    "2026-03": {
+      "activations": 45,
+      "newWallets": 8,
+      "evmCreations": 234764
+    },
+    "2026-04": {
+      "activations": 75,
+      "newWallets": 9,
+      "evmCreations": 264909
+    },
+    "2026-05": {
+      "activations": 20,
+      "newWallets": 4,
+      "evmCreations": 560349
+    },
+    "2026-06": {
+      "activations": 21,
+      "newWallets": 5,
+      "evmCreations": 1554788
+    },
+    "2026-07": {
+      "activations": 18,
+      "newWallets": 5,
+      "evmCreations": 488220
+    },
+    "2026-08": {
+      "activations": 23,
+      "newWallets": 3,
+      "evmCreations": 1063736
+    },
+    "2026-09": {
+      "activations": 2,
+      "newWallets": 0,
+      "evmCreations": 128650
+    }
+  },
+  "top10Wallets": [
+    {
+      "id": "0xc1ffa3654140bd8ef216f06dcdfa479d7ce66f9b",
+      "deployerType": "both",
+      "stylusContractCount": 409,
+      "firstStylusAt": 1733290381,
+      "lastStylusAt": 1759148777,
+      "stylusWeeks": 14
+    },
+    {
+      "id": "0x6221a9c005f6e47eb398fd867784cacfdcfff4e7",
+      "deployerType": "both",
+      "stylusContractCount": 76,
+      "firstStylusAt": 1725383686,
+      "lastStylusAt": 1788879549,
+      "stylusWeeks": 14
+    },
+    {
+      "id": "0xa8806f5492d1d2c30994522289fa86f8cd103967",
+      "deployerType": "stylus",
+      "stylusContractCount": 64,
+      "firstStylusAt": 1732195230,
+      "lastStylusAt": 1732202347,
+      "stylusWeeks": 1
+    },
+    {
+      "id": "0xca03d56f811695854aacb3b83a3aa90aa0f429b2",
+      "deployerType": "stylus",
+      "stylusContractCount": 51,
+      "firstStylusAt": 1733361194,
+      "lastStylusAt": 1734563585,
+      "stylusWeeks": 2
+    },
+    {
+      "id": "0xb64138aaa800176529a46f3fd779dfbeca221ab6",
+      "deployerType": "both",
+      "stylusContractCount": 39,
+      "firstStylusAt": 1776775767,
+      "lastStylusAt": 1782397218,
+      "stylusWeeks": 6
+    },
+    {
+      "id": "0x99d9133afe1b9ec1726c077ca2b79dcbb5969707",
+      "deployerType": "both",
+      "stylusContractCount": 36,
+      "firstStylusAt": 1725383955,
+      "lastStylusAt": 1736356087,
+      "stylusWeeks": 7
+    },
+    {
+      "id": "0xe0596dda7890f9eac73a2ced59e1f46f272961a4",
+      "deployerType": "both",
+      "stylusContractCount": 31,
+      "firstStylusAt": 1767034121,
+      "lastStylusAt": 1777181171,
+      "stylusWeeks": 8
+    },
+    {
+      "id": "0x101e5c50aed7b0f99ada88bc3febfc3bc3dc093e",
+      "deployerType": "both",
+      "stylusContractCount": 27,
+      "firstStylusAt": 1765484142,
+      "lastStylusAt": 1765663277,
+      "stylusWeeks": 1
+    },
+    {
+      "id": "0x812922c33079c3e2324d25ef0352a2220686c2ac",
+      "deployerType": "both",
+      "stylusContractCount": 23,
+      "firstStylusAt": 1746807262,
+      "lastStylusAt": 1756835105,
+      "stylusWeeks": 3
+    },
+    {
+      "id": "0x9217bb4af4429eb4d61a78b65b99b3688723ab86",
+      "deployerType": "both",
+      "stylusContractCount": 23,
+      "firstStylusAt": 1758825378,
+      "lastStylusAt": 1774517451,
+      "stylusWeeks": 4
+    }
+  ],
+  "snapshotSha256": "83815c00d5df503247365991d58395885aeefb02e86010f75e01e2c4aba6d6a9"
+}
