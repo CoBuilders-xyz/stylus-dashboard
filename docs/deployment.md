@@ -1,6 +1,6 @@
 # Railway deployment and operations
 
-This runbook describes the dashboard in this repository. Production uses four services: PostgreSQL, Hasura, Envio and Web. The optional local devnode is documented in [Contributing](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/CONTRIBUTING.md); this branch does not contain a Railway devnode Dockerfile or `config.railway-devnode.yaml`.
+This runbook describes the dashboard in this repository. Production uses four services: PostgreSQL, Hasura, Envio and Web. For the local devnode, see [Contributing](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/CONTRIBUTING.md).
 
 ## Public endpoints
 
@@ -8,13 +8,13 @@ This runbook describes the dashboard in this repository. Production uses four se
 - GraphQL: <https://stylus-dashboard-hql.up.railway.app/v1/graphql>
 - Hasura health: <https://stylus-dashboard-hql.up.railway.app/healthz>
 
-The production Web and indexer were observed on commit `4ad27299f088397f2573a98e9d53a6b88076ba6e` on 8 September 2026. This is evidence for that deployment, not a claim that the release branch has been deployed. See [release status](release.md).
+The production Web and indexer were observed on commit `4ad27299f088397f2573a98e9d53a6b88076ba6e` on 8 September 2026. See the [dated deployment evidence](release.md#existing-deployment-evidence).
 
 ## Service configuration
 
 Use the repository root as Docker build context. Select `apps/web/Dockerfile` for Web and `packages/indexer/Dockerfile` for Envio. Keep one indexer instance per dataset and retain PostgreSQL storage across restarts. Use Railway's PostgreSQL template with its persistent volume; the observed production template is PostgreSQL 18. Hasura uses `hasura/graphql-engine:v2.43.0`.
 
-Web's Dockerfile runs the standalone Next.js server. The current indexer Dockerfile runs **`pnpm envio start -r`**, which requests a reset. This documentation release leaves that command unchanged. A separate operational follow-up should review removing `-r` from both the Dockerfile and any Railway Start Command override, then verify resume behavior. The non-reset CLI command is `pnpm envio start`.
+Web's Dockerfile runs the standalone Next.js server. The current indexer Dockerfile runs **`pnpm envio start -r`**, which requests a reset. For persistent operation, review using `pnpm envio start` in both the Dockerfile and any Railway Start Command override, then verify resume behavior through a controlled restart.
 
 ### PostgreSQL
 
@@ -48,7 +48,7 @@ Expose HTTPS for browser queries. The `public` role needs SELECT access for the 
 | `TUI_OFF`                                                 | `true`                                                |
 | `LOG_STRATEGY`                                            | `console-pretty`                                      |
 
-`ENVIO_CONFIG` is the supported CLI environment variable (`pnpm envio start --help`); `CONFIG_FILE` is not used here. The aggregate setting must be a JSON array. It applies on initialization/reset, so existing metadata may require the one-time repair below. Configure `ENVIO_PG_SSL_MODE` if required by the chosen database connection; its value depends on the database's SSL configuration.
+Use `ENVIO_CONFIG` (`pnpm envio start --help`), not `CONFIG_FILE`. The aggregate setting must be a JSON array. It applies on initialization/reset, so existing metadata may require the one-time repair below. Configure `ENVIO_PG_SSL_MODE` if required by the chosen database connection; its value depends on the database's SSL configuration.
 
 ### Web variables
 
@@ -83,7 +83,7 @@ HASURA_ENDPOINT=https://stylus-dashboard-hql.up.railway.app \
 
 The script defaults to the development secret `testing`; production requires the real secret via the environment. It targets the default source, `public` schema and `public` role, recreating SELECT permissions with all columns, an empty row filter and aggregates allowed. Inspect custom permissions before using it on a differently configured Hasura. It does not reset or reindex chain data.
 
-3. Run `node scripts/check-public.mjs` and verify Comparison in a browser. A successful variable save alone is not evidence that permissions changed.
+3. Run `node scripts/check-public.mjs` and verify Comparison in a browser.
 
 ## Verification and monitoring
 
@@ -112,9 +112,7 @@ query IndexerProgress {
 }
 ```
 
-Monitor Web/Hasura availability, indexer restart count and errors, PostgreSQL storage, upstream rate limits, and the gap between source and processed blocks. Check progress across two observations; a running process can still be stalled. The app's Health page describes program activation expiry, not infrastructure health. Production monitoring/alerts and backup ownership are operator responsibilities; this repo does not claim an uptime SLA.
-
-If a separate operational change adopts non-reset startup, verify it with a controlled restart and confirm persisted progress and contract totals remain. This documentation release did not change the Docker command or restart production.
+Monitor Web/Hasura availability, indexer restart count and errors, PostgreSQL storage, upstream rate limits, and the gap between source and processed blocks. Check progress across two observations; a running process can still be stalled. The app's Health page describes program activation expiry, not infrastructure health. Assign owners for monitoring, alerts and backups. After adopting non-reset startup, confirm that processed blocks and contract totals survive a controlled restart.
 
 ## Recovery
 
@@ -124,7 +122,3 @@ If a separate operational change adopts non-reset startup, verify it with a cont
 - **Incompatible schema/chain/start block:** stop and plan the migration. Prefer a separate database plus Hasura for a replacement dataset, synchronize and validate it, then switch Web's endpoint. An isolated `ENVIO_PG_SCHEMA` also requires matching Hasura metadata and public query review; the permission script assumes `public`.
 - **Intentional full reindex:** only after a backup and a maintenance plan, run `pnpm envio start --config config.arbitrum-one.yaml -r` once in the indexer service's configured environment. This clears and rebuilds indexer storage. Restore ordinary startup immediately afterward.
 - **Rollback:** redeploy the previously verified Web/indexer commit only if it remains compatible with the current schema and configuration. Otherwise restore the matching database backup or validated replacement dataset as well. Do not assume a code rollback reverses data migrations.
-
-## Release deployment boundary
-
-Preparing or pushing the `release` branch does not merge it into `main` or switch production. Publish the documentation release against the reviewed commit. Record application deployment status and unresolved operational findings accurately in its notes; preparing documentation does not repair those findings. The [release record](release.md) lists the concrete pending steps.

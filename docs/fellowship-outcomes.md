@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document records the **Stylus Ecosystem Dashboard** contribution to the fellowship's Public Release and Documentation & Ecosystem Report phases. It does not certify the second tooling initiative, other repositories or cohort-wide outcomes. It separates delivered software capabilities from ecosystem findings and unmeasured impact.
+The **Stylus Ecosystem Dashboard** contributes a public observability tool, documentation and a reproducible ecosystem report to the fellowship's release phase. This assessment covers that repository; the second tooling initiative requires its own evidence.
 
 ## Delivered capabilities
 
@@ -16,32 +16,32 @@ This document records the **Stylus Ecosystem Dashboard** contribution to the fel
 | Reproducible ecosystem baseline                                              | [Public-data snapshot and report](reports/2026-09-08/README.md), [capture and analysis scripts](https://github.com/CoBuilders-xyz/stylus-dashboard/tree/release/scripts/report)                                                                     |
 | Handoff documentation                                                        | [Documentation index](README.md), [operations](deployment.md), [release evidence](release.md)                                                                                                                                                       |
 
-The implementation history runs from the July 2026 scaffold through September 2026 dashboard improvements. The chain dataset begins in September 2024, before that implementation work; historical chain growth is not attributed to the fellowship.
+Implementation ran from July through September 2026. The indexed chain history begins in September 2024 and therefore predates the fellowship work.
 
 ## Engineering lessons
 
-**Definitions are part of the product.** Activation addresses, unique codehashes, deployment addresses and executed calls answer different questions. The release documentation makes this distinction explicit and explains the existing comparison/retention labels and Health placeholders. It does not change the application.
+**Metric definitions need to accompany the UI.** Activation addresses, codehashes, deployments and executed calls answer different questions. The methodology documents those distinctions, along with retention windows and estimated expiry.
 
-**Aggregate APIs need deployment evidence.** Counts moved into database aggregates to bound dashboard queries. The release audit found that production's public role lacked one required aggregate even though route HTTP checks and prior CI were green. The existing integration assertion covers only the Stylus contract aggregate. The release adds a separate read-only smoke checker that runs real dashboard queries without credentials; extending integration coverage is a future application task.
+**Test public queries, not just routes.** Production lacked a required aggregate permission even though HTTP checks and prior CI passed. The release adds a read-only checker for real dashboard queries. Integration coverage should also assert `DeployerRegistry_aggregate` access.
 
-**Historical indexing requires resource controls.** Windowed trace queries, limited preload batches, per-page extraction, bounded retries/timeouts and cached effects address memory and upstream availability constraints. These controls still require operational monitoring; a running process is not sufficient proof of freshness.
+**Backfills need bounded resource use.** Trace windows, limited preload batches, per-page extraction and cached effects control memory and upstream requests. Operators still need to monitor block progress and rate limits.
 
-**Persisted state is a release concern.** The current Docker command includes an unconditional reset. The release documents its implications, backups and a proposed resume/restart verification procedure; changing that command is separate operational work.
+**Verify restart behavior.** The current Docker command resets storage. The operations guide records the finding and a procedure for validating persistent startup.
 
-**Reproducibility improves conclusions.** A frozen snapshot with query hashes and consistency checks makes the report inspectable. Completed UTC windows avoid interpreting today's partial data as a full day's activity.
+**Freeze report inputs.** Snapshot and query hashes make the analysis reproducible. Completed UTC periods make recent activity comparable.
 
 ## Ecosystem findings and recommended follow-up
 
-The [report](reports/2026-09-08/README.md) observes 1,041 activation-seen program addresses and 95 wallets, concentrated among a small set of wallets, with fewer first activations in the latest completed 30-day period. These findings support improving address discovery, separating usage from activation, validating lifecycle estimates and continuing periodic reports with consistent definitions.
+The [report](reports/2026-09-08/README.md) observes 1,041 activation-seen program addresses and 95 wallets, concentrated among a small set of wallets, with fewer first activations in the latest completed 30-day period.
 
-Suggested follow-up order:
+Priorities:
 
-1. Publish the reviewed documentation/report package and separately address Comparison permissions and startup behavior.
+1. Complete release publication; address Comparison permissions and persistent startup.
 2. Validate address/codehash coverage and correct codehash-to-many-address state propagation.
 3. Design interaction tracking with a separate daily-activity schema and external reference checks.
 4. Review query indexes and historical aggregate semantics as the dataset grows.
-5. Gather feedback from actual dashboard users and report usage or maintenance outcomes only when evidence exists.
+5. Collect dashboard user feedback and usage evidence for the next retrospective.
 
 ## Impact not measured in this package
 
-This package does not contain visitor analytics, named user testimonials, verified counts of independent teams, evidence of external integrators, financial impact or proof that the dashboard caused Stylus adoption. It claims delivery of a public observability tool, documentation and a reproducible baseline. Any broader fellowship retrospective should add separately sourced participant experience, timeline and stakeholder feedback rather than infer them from on-chain totals.
+Visitor analytics, user feedback and external integrations were not measured. The on-chain report cannot show whether the dashboard caused adoption. A broader retrospective needs participant and stakeholder evidence alongside the software deliverables.

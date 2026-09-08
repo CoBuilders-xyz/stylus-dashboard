@@ -3,7 +3,7 @@
 ## Components and boundaries
 
 ```mermaid
-flowchart LR
+flowchart TB
   A[Arbitrum One events] --> I[Envio HyperIndex]
   H[HyperSync creation traces] --> I
   N[Local Nitro RPC] -->|development only| I
@@ -38,7 +38,7 @@ The frontend makes no RPC or HyperSync calls. Both its server and browser use Ha
 | `GlobalStats`       | Singleton `global`           | Current EVM total and Stylus deployer, repeat and returning counts                                       |
 | `DailyStats`        | UTC `YYYY-MM-DD`             | Daily first activations, reactivations, first-time wallets, EVM creations and cache events               |
 
-These are logical relationships maintained by handlers, not a promise of explicit database foreign keys. Address-only IDs assume one chain per dataset; independent chains require independent datasets before results can be combined safely. See [methodology](methodology.md) for codehash and legacy-total limitations.
+Handlers maintain these relationships. Address-only IDs require a separate dataset per chain. See [methodology](methodology.md) for codehash and legacy-total limitations.
 
 ## Indexing lifecycle
 
@@ -51,15 +51,15 @@ These are logical relationships maintained by handlers, not a promise of explici
 
 ### Historical and current windows
 
-Mainnet starts at 249,710,000. EVM discovery uses 10,000-block historical windows through block 490,000,000, then 300-block windows. The startup alignment check rejects a historical start that would introduce overlap/gaps. Changing start block or window boundaries is a dataset change, not a routine deployment tweak.
+Mainnet starts at 249,710,000. EVM discovery uses 10,000-block historical windows through block 490,000,000, then 300-block windows. The startup alignment check rejects historical starts that would introduce overlaps or gaps. Changing these boundaries requires a dataset migration or reindex.
 
 `full_batch_size: 250` limits preload fan-out and memory use. Creation results are extracted per HyperSync page so raw responses are not retained across the whole window. HTTP calls have a 30-second timeout; transient errors have bounded retries, and an archive behind the required range is retried before failing. Cached effects avoid repeated upstream requests when replaying the same ranges on a normal resume. Persistent rate limiting can still stop the process; operators must check indexing progress and token allowance.
 
-The local development path uses RPC blocks and receipts for **direct creations only**, with different coverage from mainnet internal traces. Local seed activity is never ecosystem-report evidence.
+The local development path uses RPC blocks and receipts for **direct creations only**, with different coverage from mainnet internal traces.
 
 ### Persistence and recovery
 
-The CLI command `pnpm envio start` resumes persisted progress. The repository's current Dockerfile instead includes `-r`, which explicitly clears and rebuilds indexer storage. That operational finding is documented for separate follow-up; this release does not change startup behavior. Incompatible configuration or schema changes require an intentional migration/reindex strategy; see the [operations runbook](deployment.md). Fork/reorg handling is delegated to the installed Envio runtime; this dashboard does not independently certify block finality.
+The CLI command `pnpm envio start` resumes persisted progress; the current Dockerfile adds `-r`, which clears and rebuilds storage. See the [operations runbook](deployment.md) for restart, migration and recovery procedures. Envio handles forks and reorgs.
 
 ## Query and rendering design
 
@@ -82,4 +82,4 @@ Hasura must expose both `StylusContract_aggregate` and `DeployerRegistry_aggrega
 
 [CI](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/.github/workflows/ci.yml) runs lint, types, Vitest and a production Web build. [Integration](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/.github/workflows/integration.yml) starts a Nitro devnode and Envio/Hasura, seeds a Stylus program, and asserts contract/registry/daily rows plus public `StylusContract_aggregate` access. It does not currently assert `DeployerRegistry_aggregate` permissions. It validates the local path; it does not prove complete mainnet trace coverage.
 
-Add an entity in the schema, run codegen, update handlers and meaningful tests, then add frontend queries/types. Adding interactions requires a separate data model and discovery method; it should not redefine activation counters. Changing expiration logic requires chain parameter evidence and a plan for existing rows. Deployment configuration, permissions and report reproduction are documented separately so contributors can change presentation without production credentials.
+Add an entity in the schema, run codegen, update handlers and meaningful tests, then add frontend queries/types. Adding interactions requires a separate data model and discovery method; it should not redefine activation counters. Changing expiration logic requires chain parameter evidence and a plan for existing rows.

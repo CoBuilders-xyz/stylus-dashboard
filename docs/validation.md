@@ -20,4 +20,6 @@ The public check intentionally exits nonzero for the recorded Comparison failure
 
 ## Documentation site verification
 
-Docsify was checked locally using the same static files published to GitHub Pages: home and nested report navigation, search results for “expiry”, rendered Mermaid architecture diagram, direct snapshot/SVG downloads, image loading and mobile menu. No JavaScript page errors were observed. Application/CI files remain unchanged. The hosted documentation introduces only Docsify viewer files and Markdown navigation/content updates; the existing dashboard deployment is separate.
+Browser checks covered all documentation routes, search, report downloads and image loading. Light, Dark and System modes were checked for saved preferences, device-theme changes and Mermaid rendering. The page index was tested as a desktop sidebar and a mobile disclosure, including anchor navigation and the mobile menu. No JavaScript page errors were observed.
+
+Offline report reproduction still produces byte-identical metrics after the editorial revision. The snapshot, report data and application/CI files are unchanged.

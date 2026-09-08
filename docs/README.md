@@ -1,8 +1,6 @@
 # Stylus Dashboard
 
-**Documentation for understanding Stylus adoption on Arbitrum One.**
-
-Explore the dashboard, understand what its metrics measure, and reproduce the ecosystem findings from public on-chain data.
+Explore Stylus activation data on Arbitrum One, understand the metrics, and reproduce the ecosystem report.
 
 [Open the dashboard](https://stylus-dashboard.up.railway.app) · [Read the ecosystem report](reports/2026-09-08/README.md) · [View source code](https://github.com/CoBuilders-xyz/stylus-dashboard)
 
@@ -27,5 +25,3 @@ Reports are dated snapshots. Dashboard values continue changing as indexing prog
 - [Release notes](release-notes.md)
 - [Validation and evidence](validation.md)
 - [Maintaining this documentation site](publishing.md)
-
-This package covers the Stylus Ecosystem Dashboard contribution to the fellowship. The second tooling project is outside this repository's scope.

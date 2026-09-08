@@ -1,16 +1,18 @@
 # Usage guide
 
-Open the [public dashboard](https://stylus-dashboard.up.railway.app). Reading the dashboard does not require a wallet connection, account, token or transaction. Data comes from Arbitrum One; consult the [methodology](methodology.md) for coverage and definitions.
+Open the [public dashboard](https://stylus-dashboard.up.railway.app). No account or wallet connection is required. Data comes from Arbitrum One; consult the [methodology](methodology.md) for coverage and definitions.
 
-Screenshots below were captured directly from the **existing public dashboard on 8 September 2026**. This release documents the current application. Live values can differ from the frozen report.
+Screenshots show the public dashboard on **8 September 2026**; live values will change.
 
 ## Overview
 
 ![Overview](images/overview.png)
 
-The contract and deployer cards cover all indexed history. Activations and Reactivations cover 30 UTC dates ending today. Changing the chart's **7d / 30d / All** control changes that chart, not the KPI period. Today's date is incomplete. The recent-contract table contains ten entries, not the entire dataset. The daily table’s Total Contracts column is currently a per-day counter despite its label; use the top Stylus Contracts card for the current total.
+Contract and deployer cards cover all indexed history. Activations and Reactivations cover 30 UTC dates ending today, including today's partial data. The chart's **7d / 30d / All** control changes only the chart period.
 
-Daily Activations shows first observations of program addresses in activation events. Reactivations include repeated activations and keepalives. They do not represent all calls to a program.
+The recent-contract table shows ten entries. In the daily table, Total Contracts is a per-day counter despite its label; use the top Stylus Contracts card for the current total.
+
+Daily Activations shows first observations of program addresses in activation events. Reactivations include repeated activations and keepalives. For definitions, see [what gets counted](methodology.md#what-gets-counted).
 
 ## Contracts
 
@@ -30,7 +32,7 @@ Status priority is Expired, Expiring within seven days, Cached, then Active. The
 
 Unique Deployers counts activating wallets. Repeat Builders counts wallets associated with more than one first observed program activation. New This Week covers seven UTC dates ending today. The card labeled Retention (>1 week) is the fraction observed activating new programs in multiple fixed seven-day windows; it is not weekly cohort retention.
 
-The leaderboard shows the top ten wallets. Click a Contracts value to inspect the associated records. Several wallets may belong to one organization, and one shared wallet may serve several developers. Use the leaderboard to inspect concentration, not to infer the number of independent teams.
+The leaderboard shows the top ten wallets. Click a Contracts value to inspect the associated records. Wallets can be shared or controlled by the same organization, so leaderboard entries do not identify independent teams.
 
 ## Health
 
@@ -42,16 +44,16 @@ Reactivation Rate divides repeated activations plus keepalives by new activation
 
 ## Stylus vs Solidity (EVM comparison)
 
-[Open Comparison](https://stylus-dashboard.up.railway.app/comparison) to compare observed Stylus activations with EVM creations. The application labels this page Stylus vs Solidity, but the underlying comparison includes all EVM source languages. This guide uses EVM when describing its measurements.
+[Open Comparison](https://stylus-dashboard.up.railway.app/comparison) to compare observed Stylus activations with EVM creations. The page is labeled Stylus vs Solidity; its EVM data includes all source languages.
 
 WASM Share uses the two indexed contract populations as its denominator. Total Contracts and Deployers cover indexed history; Deploys/day averages the latest 30 UTC dates. The 7d share annotation is a window-specific share, not percentage-point growth. The daily count chart uses a logarithmic axis because EVM counts are much larger. The share chart normalizes each day's two counts. Both charts share the selected period: changing either period control updates both charts.
 
-Deployer Overlap asks how many registry addresses classified as EVM have also been observed on the Stylus side. It requires public aggregate permissions. At the report's capture time, this permission was missing in production; the [operations guide](deployment.md#existing-public-aggregate-permissions) contains the repair and [release record](release.md) tracks verification. No successful Comparison screenshot is claimed for that production state.
+Deployer Overlap asks how many registry addresses classified as EVM have also been observed on the Stylus side. It requires public aggregate permissions. At the 8 September 2026 check, the missing permission caused Comparison to fail. See the [repair procedure](deployment.md#existing-public-aggregate-permissions) and [dated check](reports/2026-09-08/public-check.json).
 
 ## Navigation, sharing and refresh
 
-Use the sidebar on a desktop-width screen to switch between sections. The current sidebar is hidden below its desktop breakpoint; on a narrow screen, use the direct page links in this guide. The theme control in the sidebar switches light/dark appearance. This documentation release does not change navigation.
+Use the sidebar on a desktop-width screen to switch between sections. On narrow screens, the dashboard sidebar is hidden; use this guide's direct page links. Its sidebar theme control switches between light and dark appearance.
 
-Most main queries refresh every five seconds; full-history/growth queries use 60 seconds. A chart can show loading separately from the main cards. A data error or dash is not a zero-adoption finding. Use Retry where available or reload the page, then check the [release record](release.md) or file a [bug](https://github.com/CoBuilders-xyz/stylus-dashboard/issues/new?template=bug.yml) with route, time, filters and error text.
+Most main queries refresh every five seconds; full-history/growth queries use 60 seconds. A chart can show loading separately from the main cards. A data error or dash is not a zero-adoption finding. Use Retry or reload, then file a [bug](https://github.com/CoBuilders-xyz/stylus-dashboard/issues/new?template=bug.yml) with route, time, filters and error text.
 
-For a shareable, fixed result use the [dated ecosystem report](reports/2026-09-08/README.md), which preserves its input data and formulas. The dashboard itself does not currently offer a CSV export button; report capture provides a reproducible JSON dataset.
+For a shareable, fixed result use the [dated ecosystem report](reports/2026-09-08/README.md), which preserves its input data and formulas. The report provides JSON downloads; the dashboard has no CSV export.

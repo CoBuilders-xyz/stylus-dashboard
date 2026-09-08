@@ -13,9 +13,16 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/docsify@5.0.0/dist/themes/core.min.css"
     />
+    <link
+      id="dark-theme"
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/docsify@5.0.0/dist/themes/addons/core-dark.min.css"
+      media="(prefers-color-scheme: dark)"
+    />
     <link rel="stylesheet" href="site.css" />
+    <script src="site.js"></script>
   </head>
-  <body class="loading">
+  <body class="loading sidebar-toggle-hamburger">
     <div id="app">Loading documentation…</div>
     <noscript
       >This documentation viewer needs JavaScript.
@@ -23,7 +30,6 @@
         >Read the same Markdown on GitHub</a
       >.</noscript
     >
-    <script src="site.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docsify@5.0.0/dist/docsify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docsify@5.0.0/dist/plugins/search.min.js"></script>
   </body>
