@@ -1,0 +1,6 @@
+query ReportDaily($after: String!, $limit: Int!) {
+  DailyStats(where: { id: { _gt: $after } }, order_by: { id: asc }, limit: $limit) {
+    id date stylusActivations stylusReactivations uniqueStylusDeployers
+    evmDeployments uniqueEvmDeployers cacheEvents
+  }
+}

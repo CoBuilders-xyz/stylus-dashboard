@@ -1,0 +1,9 @@
+query ReportSummary($now: Int!, $d7: Int!) {
+  _meta { chainId startBlock progressBlock sourceBlock isReady readyAt }
+  StylusContract_aggregate { aggregate { count } }
+  cached: StylusContract_aggregate(where: { isCached: { _eq: true } }) { aggregate { count } }
+  expired: StylusContract_aggregate(where: { expiresAt: { _lt: $now } }) { aggregate { count } }
+  expiring: StylusContract_aggregate(where: { expiresAt: { _gte: $now, _lt: $d7 } }) { aggregate { count } }
+  unknownExpiry: StylusContract_aggregate(where: { expiresAt: { _is_null: true } }) { aggregate { count } }
+  GlobalStats { cumulativeDeployers totalEvmContracts repeatStylusDeployers retainedStylusDeployers }
+}

@@ -1,0 +1,8 @@
+query ReportBuilders($after: String!, $limit: Int!) {
+  DeployerRegistry(
+    where: { id: { _gt: $after }, stylusContractCount: { _gt: 0 } }
+    order_by: { id: asc }, limit: $limit
+  ) {
+    id deployerType stylusContractCount firstStylusAt lastStylusAt stylusWeeks
+  }
+}

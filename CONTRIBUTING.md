@@ -2,6 +2,8 @@
 
 Thank you for contributing! This is a collaborative project built by the Stylus Fellowship cohort. This guide will help you get started.
 
+For the delivered scope and public-data definitions, start with the [documentation package](docs/README.md), [architecture](docs/architecture.md) and [methodology](docs/methodology.md). Deployment and report reproduction are covered there as well.
+
 ## Architecture Overview
 
 This is a monorepo with three main workspaces:
@@ -53,7 +55,7 @@ This gives us SSR for the first paint (SEO, LCP) plus client-side polling for re
 
 ### Data Model
 
-All data feeds into a **unified schema** via Hasura. Whether data comes from the Stylus indexer or a future EVM tracker, it lives in the same PostgreSQL database and is queryable through the same GraphQL endpoint. This lets us cross-reference Stylus and EVM data without stitching APIs client-side.
+All data feeds into a **unified schema** via Hasura. Whether data comes from the Stylus indexer or the EVM creation tracker, it lives in the same PostgreSQL database and is queryable through the same GraphQL endpoint. This lets us cross-reference Stylus and EVM data without stitching APIs client-side.
 
 Key entities today:
 
@@ -61,6 +63,10 @@ Key entities today:
 - `DailyStats` — aggregated daily metrics (activations, deployers, cache events)
 - `LifetimeExtension` — keepalive events
 - `CacheEvent` — ArbWasmCache updates
+- `EvmDeployment` — observed non-Stylus creation addresses
+- `DeployerRegistry` — wallet classification and Stylus recurrence counters
+- `GlobalStats` — current ecosystem counters
+- `CodehashIndex` — one current address mapping for codehash-only events
 
 ## Development Workflow
 
@@ -196,6 +202,7 @@ test: add integration tests for ProgramActivated handler
 ### Envio Codegen (automatic)
 
 The indexer requires `envio codegen` to generate type definitions from `config.yaml` and `schema.graphql`. This runs automatically:
+
 - On `pnpm install` (via postinstall hook)
 - On `pnpm typecheck` (runs codegen first, then tsc)
 - On `envio dev` (live-reloads types on schema changes)
