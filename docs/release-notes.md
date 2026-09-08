@@ -3,12 +3,12 @@
 Public release documentation for the existing Stylus Ecosystem Dashboard, covering activation and deployment indicators on Arbitrum One.
 
 - [Open the dashboard](https://stylus-dashboard.up.railway.app)
-- [Documentation package](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/docs/README.md)
+- [Documentation site](https://cobuilders-xyz.github.io/stylus-dashboard/)
 - [Ecosystem report — 8 September 2026](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/docs/reports/2026-09-08/README.md)
 - [Methodology and limitations](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/docs/methodology.md)
 - [Release evidence](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/docs/release.md)
 
-The package includes usage, architecture and operations documentation; a public-data snapshot with reproducible analysis and figures; and dashboard-specific fellowship outcomes and recommendations. Application code, indexer behavior, deployment settings and CI remain unchanged.
+The package includes a Docsify documentation site on GitHub Pages with search and navigation; usage, architecture and operations documentation; a public-data snapshot with reproducible analysis and figures; and dashboard-specific fellowship outcomes and recommendations. Application code, indexer behavior, deployment settings and CI remain unchanged.
 
 The report observes 1,041 activation-seen program addresses and 95 wallets. Five wallets account for 61.4% of those addresses; the latest 30 completed UTC days contain 15 first activations versus 27 in the preceding period. These observations do not establish a complete inventory of Stylus addresses or measure contract usage.
 

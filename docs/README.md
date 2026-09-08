@@ -1,15 +1,31 @@
-# Final documentation package
+# Stylus Dashboard
 
-This package covers the **Stylus Ecosystem Dashboard only**. The fellowship's second tooling project is outside this repository's scope.
+**Documentation for understanding Stylus adoption on Arbitrum One.**
 
-- [Public dashboard](https://stylus-dashboard.up.railway.app)
-- [Usage guide](usage.md): pages, filters, examples and screenshots.
-- [Metric methodology](methodology.md): definitions, formulas, coverage and limitations.
-- [Architecture](architecture.md): components, entities, indexing and design decisions.
-- [Deployment and operations](../DEPLOY-RAILWAY.md): configuration, permissions, restarts and recovery.
-- [Ecosystem report — 8 September 2026](reports/2026-09-08/README.md): measured findings, frozen evidence and recommendations.
-- [Fellowship outcomes](fellowship-outcomes.md): delivered capabilities, lessons and next steps.
-- [Release evidence and remaining publication steps](release.md).
-- [Release notes](../CHANGELOG.md).
+Explore the dashboard, understand what its metrics measure, and reproduce the ecosystem findings from public on-chain data.
+
+[Open the dashboard](https://stylus-dashboard.up.railway.app) · [Read the ecosystem report](reports/2026-09-08/README.md) · [View source code](https://github.com/CoBuilders-xyz/stylus-dashboard)
+
+## Start here
+
+| I want to…                                   | Read                                     |
+| -------------------------------------------- | ---------------------------------------- |
+| Explore the dashboard and its filters        | [Usage guide](usage.md)                  |
+| Understand the numbers and their limitations | [Metric methodology](methodology.md)     |
+| Learn how the system works                   | [Architecture](architecture.md)          |
+| Deploy or operate the dashboard              | [Deployment & operations](deployment.md) |
+
+## Ecosystem research
+
+The [September 2026 ecosystem report](reports/2026-09-08/README.md) includes measured findings, a frozen public-data snapshot, reproducible queries and downloadable charts. Read the [fellowship outcomes](fellowship-outcomes.md) for delivered capabilities, lessons and recommendations.
 
 Reports are dated snapshots. Dashboard values continue changing as indexing progresses. Read the methodology before comparing these figures with other ecosystem datasets.
+
+## Release package
+
+- [Deliverables and publication checklist](release.md)
+- [Release notes](release-notes.md)
+- [Validation and evidence](validation.md)
+- [Maintaining this documentation site](publishing.md)
+
+This package covers the Stylus Ecosystem Dashboard contribution to the fellowship. The second tooling project is outside this repository's scope.

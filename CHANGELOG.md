@@ -6,6 +6,8 @@ This release packages the existing Stylus Ecosystem Dashboard with documentation
 
 ### Added
 
+- Docsify documentation site on GitHub Pages, with sidebar navigation, search and diagrams, using the existing Markdown files directly.
+
 - Documentation index, usage guide with public-dashboard screenshots, architectural documentation and a metric dictionary.
 - Dated ecosystem report, raw public-data snapshot, computed metrics, PNG/SVG figures and reproduction scripts.
 - Dashboard-specific fellowship outcomes and recommendations.

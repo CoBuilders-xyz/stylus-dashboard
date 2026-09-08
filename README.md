@@ -2,7 +2,7 @@
 
 A public, open-source dashboard for **observed Stylus activation and deployment indicators on Arbitrum One**.
 
-**[Open the dashboard](https://stylus-dashboard.up.railway.app)** · **[Usage guide](docs/usage.md)** · **[Ecosystem report](docs/reports/2026-09-08/README.md)** · **[Documentation package](docs/README.md)**
+**[Open the dashboard](https://stylus-dashboard.up.railway.app)** · **[Usage guide](docs/usage.md)** · **[Ecosystem report](docs/reports/2026-09-08/README.md)** · **[Documentation site](https://cobuilders-xyz.github.io/stylus-dashboard/)**
 
 ![Stylus adoption overview](docs/images/overview.png)
 
@@ -76,7 +76,7 @@ For a **separate mainnet dataset**, add an `ENVIO_API_TOKEN` to the indexer envi
 pnpm --filter @stylus-dashboard/indexer dev --config config.arbitrum-one.yaml
 ```
 
-Switching an existing dataset between chains requires deliberate storage handling. Do not reset a production database as part of setup. See the [Railway deployment and recovery guide](DEPLOY-RAILWAY.md).
+Switching an existing dataset between chains requires deliberate storage handling. Do not reset a production database as part of setup. See the [Railway deployment and recovery guide](docs/deployment.md).
 
 ## Validation
 

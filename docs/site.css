@@ -1,0 +1,54 @@
+:root {
+  --theme-color: #2563eb;
+  --color-text: #24334a;
+  --font-size: 16px;
+  --font-weight: 400;
+  --line-height: 1.75;
+  --content-max-width: 960px;
+  --border-radius: 8px;
+}
+.sidebar {
+  background: #f7f9fc;
+  border-right: 1px solid #e5eaf2;
+}
+.app-name {
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+.markdown-section h1 {
+  color: #10264c;
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  line-height: 1.2;
+  letter-spacing: -0.045em;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #e5eaf2;
+}
+.markdown-section h2 {
+  letter-spacing: -0.025em;
+}
+.markdown-section img {
+  border: 1px solid #e5eaf2;
+  border-radius: 10px;
+}
+.markdown-section table {
+  font-size: 0.9rem;
+}
+.markdown-section th {
+  background: #f2f6fc;
+}
+.markdown-section .mermaid {
+  overflow-x: auto;
+  margin-block: 2rem;
+}
+.docs-footer {
+  margin-top: 4rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e5eaf2;
+  font-size: 0.8rem;
+  color: #63738b;
+}
+@media (max-width: 768px) {
+  :root {
+    --content-margin-inline: 22px;
+  }
+}

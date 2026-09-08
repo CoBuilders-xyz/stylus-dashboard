@@ -46,7 +46,7 @@ Reactivation Rate divides repeated activations plus keepalives by new activation
 
 WASM Share uses the two indexed contract populations as its denominator. Total Contracts and Deployers cover indexed history; Deploys/day averages the latest 30 UTC dates. The 7d share annotation is a window-specific share, not percentage-point growth. The daily count chart uses a logarithmic axis because EVM counts are much larger. The share chart normalizes each day's two counts. Both charts share the selected period: changing either period control updates both charts.
 
-Deployer Overlap asks how many registry addresses classified as EVM have also been observed on the Stylus side. It requires public aggregate permissions. At the report's capture time, this permission was missing in production; the [operations guide](../DEPLOY-RAILWAY.md#existing-public-aggregate-permissions) contains the repair and [release record](release.md) tracks verification. No successful Comparison screenshot is claimed for that production state.
+Deployer Overlap asks how many registry addresses classified as EVM have also been observed on the Stylus side. It requires public aggregate permissions. At the report's capture time, this permission was missing in production; the [operations guide](deployment.md#existing-public-aggregate-permissions) contains the repair and [release record](release.md) tracks verification. No successful Comparison screenshot is claimed for that production state.
 
 ## Navigation, sharing and refresh
 

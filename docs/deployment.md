@@ -1,6 +1,6 @@
 # Railway deployment and operations
 
-This runbook describes the dashboard in this repository. Production uses four services: PostgreSQL, Hasura, Envio and Web. The optional local devnode is documented in [Contributing](CONTRIBUTING.md); this branch does not contain a Railway devnode Dockerfile or `config.railway-devnode.yaml`.
+This runbook describes the dashboard in this repository. Production uses four services: PostgreSQL, Hasura, Envio and Web. The optional local devnode is documented in [Contributing](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/CONTRIBUTING.md); this branch does not contain a Railway devnode Dockerfile or `config.railway-devnode.yaml`.
 
 ## Public endpoints
 
@@ -8,7 +8,7 @@ This runbook describes the dashboard in this repository. Production uses four se
 - GraphQL: <https://stylus-dashboard-hql.up.railway.app/v1/graphql>
 - Hasura health: <https://stylus-dashboard-hql.up.railway.app/healthz>
 
-The production Web and indexer were observed on commit `4ad27299f088397f2573a98e9d53a6b88076ba6e` on 8 September 2026. This is evidence for that deployment, not a claim that the release branch has been deployed. See [release status](docs/release.md).
+The production Web and indexer were observed on commit `4ad27299f088397f2573a98e9d53a6b88076ba6e` on 8 September 2026. This is evidence for that deployment, not a claim that the release branch has been deployed. See [release status](release.md).
 
 ## Service configuration
 
@@ -127,4 +127,4 @@ If a separate operational change adopts non-reset startup, verify it with a cont
 
 ## Release deployment boundary
 
-Preparing or pushing the `release` branch does not merge it into `main` or switch production. Publish the documentation release against the reviewed commit. Record application deployment status and unresolved operational findings accurately in its notes; preparing documentation does not repair those findings. The [release record](docs/release.md) lists the concrete pending steps.
+Preparing or pushing the `release` branch does not merge it into `main` or switch production. Publish the documentation release against the reviewed commit. Record application deployment status and unresolved operational findings accurately in its notes; preparing documentation does not repair those findings. The [release record](release.md) lists the concrete pending steps.

@@ -15,13 +15,13 @@ flowchart LR
   S --> B
 ```
 
-| Component          | Responsibility                                                    | Source                                                                                                      |
-| ------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `packages/indexer` | Event ingestion, creation discovery, normalization and aggregates | [configuration](../packages/indexer/config.arbitrum-one.yaml), [handlers](../packages/indexer/src/handlers) |
-| PostgreSQL         | Persist entities, indexing progress and effect cache              | Managed by Envio locally; persistent Railway service in production                                          |
-| Hasura             | Expose entity reads, filters, ordering, pagination and aggregates | Schema generated from [schema.graphql](../packages/indexer/schema.graphql)                                  |
-| `apps/web`         | Five dashboard routes, server initial data and client updates     | [app](../apps/web/src/app), [GraphQL queries](../apps/web/src/lib/graphql/queries.ts)                       |
-| `scripts`          | Devnode setup, seeding, permission maintenance and report capture | [scripts](../scripts)                                                                                       |
+| Component          | Responsibility                                                    | Source                                                                                                                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/indexer` | Event ingestion, creation discovery, normalization and aggregates | [configuration](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/packages/indexer/config.arbitrum-one.yaml), [handlers](https://github.com/CoBuilders-xyz/stylus-dashboard/tree/release/packages/indexer/src/handlers) |
+| PostgreSQL         | Persist entities, indexing progress and effect cache              | Managed by Envio locally; persistent Railway service in production                                                                                                                                                                    |
+| Hasura             | Expose entity reads, filters, ordering, pagination and aggregates | Schema generated from [schema.graphql](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/packages/indexer/schema.graphql)                                                                                               |
+| `apps/web`         | Five dashboard routes, server initial data and client updates     | [app](https://github.com/CoBuilders-xyz/stylus-dashboard/tree/release/apps/web/src/app), [GraphQL queries](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/apps/web/src/lib/graphql/queries.ts)                       |
+| `scripts`          | Devnode setup, seeding, permission maintenance and report capture | [scripts](https://github.com/CoBuilders-xyz/stylus-dashboard/tree/release/scripts)                                                                                                                                                    |
 
 The frontend makes no RPC or HyperSync calls. Both its server and browser use Hasura. Public browser queries carry no admin credential. Hasura and Web require public HTTPS endpoints; Postgres and the indexer communicate over the private service network. Hasura admin access is used by Envio to register schema metadata, not by dashboard visitors.
 
@@ -59,7 +59,7 @@ The local development path uses RPC blocks and receipts for **direct creations o
 
 ### Persistence and recovery
 
-The CLI command `pnpm envio start` resumes persisted progress. The repository's current Dockerfile instead includes `-r`, which explicitly clears and rebuilds indexer storage. That operational finding is documented for separate follow-up; this release does not change startup behavior. Incompatible configuration or schema changes require an intentional migration/reindex strategy; see the [operations runbook](../DEPLOY-RAILWAY.md). Fork/reorg handling is delegated to the installed Envio runtime; this dashboard does not independently certify block finality.
+The CLI command `pnpm envio start` resumes persisted progress. The repository's current Dockerfile instead includes `-r`, which explicitly clears and rebuilds indexer storage. That operational finding is documented for separate follow-up; this release does not change startup behavior. Incompatible configuration or schema changes require an intentional migration/reindex strategy; see the [operations runbook](deployment.md). Fork/reorg handling is delegated to the installed Envio runtime; this dashboard does not independently certify block finality.
 
 ## Query and rendering design
 
@@ -80,6 +80,6 @@ Hasura must expose both `StylusContract_aggregate` and `DeployerRegistry_aggrega
 
 ## Validation and extension points
 
-[CI](../.github/workflows/ci.yml) runs lint, types, Vitest and a production Web build. [Integration](../.github/workflows/integration.yml) starts a Nitro devnode and Envio/Hasura, seeds a Stylus program, and asserts contract/registry/daily rows plus public `StylusContract_aggregate` access. It does not currently assert `DeployerRegistry_aggregate` permissions. It validates the local path; it does not prove complete mainnet trace coverage.
+[CI](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/.github/workflows/ci.yml) runs lint, types, Vitest and a production Web build. [Integration](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/.github/workflows/integration.yml) starts a Nitro devnode and Envio/Hasura, seeds a Stylus program, and asserts contract/registry/daily rows plus public `StylusContract_aggregate` access. It does not currently assert `DeployerRegistry_aggregate` permissions. It validates the local path; it does not prove complete mainnet trace coverage.
 
 Add an entity in the schema, run codegen, update handlers and meaningful tests, then add frontend queries/types. Adding interactions requires a separate data model and discovery method; it should not redefine activation counters. Changing expiration logic requires chain parameter evidence and a plan for existing rows. Deployment configuration, permissions and report reproduction are documented separately so contributors can change presentation without production credentials.

@@ -17,3 +17,7 @@ Validated on 8 September 2026. This branch contains documentation, evidence asse
 | Browser Comparison    | Existing public page displayed `Failed to load data`, confirming the query-level finding                                                               |
 
 The public check intentionally exits nonzero for the recorded Comparison failure. No production variables, metadata, source branch, deployments or database state were changed. The existing application commit's successful CI/integration runs are linked in the [release record](release.md); this documentation validation is not a new claim of application or mainnet indexing correctness.
+
+## Documentation site verification
+
+Docsify was checked locally using the same static files published to GitHub Pages: home and nested report navigation, search results for “expiry”, rendered Mermaid architecture diagram, direct snapshot/SVG downloads, image loading and mobile menu. No JavaScript page errors were observed. Application/CI files remain unchanged. The hosted documentation introduces only Docsify viewer files and Markdown navigation/content updates; the existing dashboard deployment is separate.

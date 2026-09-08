@@ -4,7 +4,7 @@
 
 The production dataset covers **Arbitrum One (chain 42161)**, starting at block **249,710,000**. Its first indexed activity day is 3 September 2024. It does not cover every Arbitrum chain or Orbit deployment. Local chain 412346 is for development only.
 
-Definitions below describe this repository's implementation, not an independent census of Stylus usage. Source: [schema](../packages/indexer/schema.graphql), [Stylus handlers](../packages/indexer/src/handlers/ArbWasm.ts), [creation handlers](../packages/indexer/src/handlers/EvmDeployments.ts), [queries](../apps/web/src/lib/graphql/queries.ts) and [frontend calculations](../apps/web/src/lib/utils.ts).
+Definitions below describe this repository's implementation, not an independent census of Stylus usage. Source: [schema](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/packages/indexer/schema.graphql), [Stylus handlers](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/packages/indexer/src/handlers/ArbWasm.ts), [creation handlers](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/packages/indexer/src/handlers/EvmDeployments.ts), [queries](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/apps/web/src/lib/graphql/queries.ts) and [frontend calculations](https://github.com/CoBuilders-xyz/stylus-dashboard/blob/release/apps/web/src/lib/utils.ts).
 
 ## What gets counted
 
