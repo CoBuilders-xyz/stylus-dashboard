@@ -9,8 +9,8 @@
     "dev": "envio dev",
     "dev:reset": "envio dev -r",
     "start": "envio start",
-    "test": "envio codegen && vitest run",
-    "typecheck": "envio codegen && tsc --noEmit",
+    "test": "ENVIO_CONFIG=config.arbitrum-local.yaml envio codegen && ENVIO_CONFIG=config.arbitrum-local.yaml vitest run",
+    "typecheck": "envio codegen --config config.arbitrum-local.yaml && tsc --noEmit",
     "lint": "eslint src/"
   },
   "dependencies": {

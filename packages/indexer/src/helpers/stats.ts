@@ -73,5 +73,7 @@ export function newDailyStats(dayId: string, timestamp: number, globalStats: Glo
     evmDeployments: 0,
     totalEvmContracts: globalStats?.totalEvmContracts ?? 0,
     cacheEvents: 0,
+    dailyActiveContracts: 0,
+    totalTransactions: 0,
   };
 }

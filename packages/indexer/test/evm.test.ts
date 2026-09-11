@@ -625,6 +625,8 @@ describe('ProgramActivated reconciliation with EvmDeployment', () => {
       evmDeployments: 2,
       totalEvmContracts: 5,
       cacheEvents: 0,
+      dailyActiveContracts: 0,
+      totalTransactions: 0,
     });
   };
 
@@ -674,8 +676,9 @@ describe('ProgramActivated reconciliation with EvmDeployment', () => {
       evmDeployments: 0,
       totalEvmContracts: 5,
       cacheEvents: 0,
+      dailyActiveContracts: 0,
+      totalTransactions: 0,
     });
-
     await activateProgram(testIndexer, 100, ACTIVATION_TS);
 
     const deployDay = await testIndexer.DailyStats.getOrThrow(getDayId(twoDaysBefore));

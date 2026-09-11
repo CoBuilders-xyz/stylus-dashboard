@@ -124,4 +124,42 @@ type DailyStats @entity {
   totalEvmContracts: Int!
   "Number of cache events on this day"
   cacheEvents: Int!
+  "Number of unique contracts with activity on this day"
+  dailyActiveContracts: Int!
+  "Total number of transactions on this day"
+  totalTransactions: Int!
+}
+
+"Per-contract daily transaction activity"
+type DailyContractActivity @entity {
+  "Format: <contract address>-YYYY-MM-DD"
+  id: ID!
+  "Address of the Stylus contract this activity belongs to"
+  contractId: String! @index
+  "Format: YYYY-MM-DD"
+  date: String!
+  "Number of transactions sent to this contract on this day"
+  transactionCount: Int!
+  "Number of distinct caller addresses on this day"
+  uniqueCallers: Int!
+}
+
+"Tracks which addresses have already been counted as a unique caller for a contract on a given day"
+type DailyContractCaller @entity {
+  "Format: <contract>-<date>-<caller>"
+  id: ID!
+}
+
+"Singleton tracking indexing progress for the transaction-activity batch job"
+type ActivityBatchState @entity {
+  "Always 'global'"
+  id: ID!
+  lastProcessedBlock: Int!
+}
+
+"Singleton holding the running list of known Stylus contract addresses"
+type KnownStylusAddresses @entity {
+  "Always 'global'"
+  id: ID!
+  addresses: [String!]!
 }
