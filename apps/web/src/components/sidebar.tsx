@@ -1,22 +1,14 @@
-import Link from 'next/link';
-import {
-  LayoutDashboard,
-  FileCode,
-  Users,
-  HeartPulse,
-  GitCompare,
-} from 'lucide-react';
-import { ThemeToggle } from '@/components/theme-toggle';
+'use client';
 
-const navItems = [
-  { href: '/', label: 'Overview', icon: LayoutDashboard },
-  { href: '/contracts', label: 'Contracts', icon: FileCode },
-  { href: '/builders', label: 'Builders', icon: Users },
-  { href: '/health', label: 'Health', icon: HeartPulse },
-  { href: '/comparison', label: 'Stylus vs Solidity', icon: GitCompare },
-];
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { NAV_ITEMS } from '@/components/nav-items';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { cn } from '@/lib/utils';
 
 export function Sidebar() {
+  const pathname = usePathname();
+
   return (
     <aside className="hidden w-64 flex-col border-r border-border bg-card p-4 lg:flex">
       <div className="mb-8">
@@ -24,16 +16,25 @@ export function Sidebar() {
         <p className="text-xs text-muted-foreground">Arbitrum MultiVM Ecosystem</p>
       </div>
       <nav className="flex flex-col gap-1">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <item.icon className="h-4 w-4" />
-            {item.label}
-          </Link>
-        ))}
+        {NAV_ITEMS.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActive ? 'page' : undefined}
+              className={cn(
+                'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+                isActive
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+              )}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
       <div className="mt-auto border-t border-border pt-4">
         <ThemeToggle />

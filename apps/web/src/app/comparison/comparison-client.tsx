@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql/client';
 import { GET_COMPARISON_HISTORY, GET_COMPARISON_STATS } from '@/lib/graphql/queries';
-import { KpiCard, KpiCardSkeleton } from '@/components/kpi-card';
+import { KpiCard, KpiCardSkeleton, KpiRow, KpiRowItem } from '@/components/kpi-card';
 import { ComparisonKpiCard } from '@/components/comparison-kpi-card';
 import { PeriodToggle } from '@/components/period-toggle';
 import { QueryErrorBoundary } from '@/components/query-error-boundary';
@@ -111,43 +111,59 @@ export function ComparisonClient({ initialData }: { initialData?: ComparisonData
       </div>
 
       <QueryErrorBoundary error={error ?? null} onRetry={() => refetch()}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiRow className="sm:grid-cols-2 lg:grid-cols-4">
           {isLoading ? (
             <>
-              <KpiCardSkeleton />
-              <KpiCardSkeleton />
-              <KpiCardSkeleton />
-              <KpiCardSkeleton />
+              <KpiRowItem>
+                <KpiCardSkeleton />
+              </KpiRowItem>
+              <KpiRowItem>
+                <KpiCardSkeleton />
+              </KpiRowItem>
+              <KpiRowItem>
+                <KpiCardSkeleton />
+              </KpiRowItem>
+              <KpiRowItem>
+                <KpiCardSkeleton />
+              </KpiRowItem>
             </>
           ) : (
             <>
-              <KpiCard
-                title="WASM Share"
-                value={share === null ? '-' : formatShare(share)}
-                change={
-                  trendShare === null
-                    ? undefined
-                    : `${SHARE_TREND_DAYS}d: ${formatShare(trendShare)}`
-                }
-              />
-              <ComparisonKpiCard
-                title="Total Contracts"
-                stylus={formatNumber(stylusContracts)}
-                evm={formatNumber(evmContracts)}
-              />
-              <ComparisonKpiCard
-                title={`Deploys / day (${RECENT_DAYS}d avg)`}
-                stylus={averages.stylus.toFixed(1)}
-                evm={averages.evm.toFixed(1)}
-              />
-              <ComparisonKpiCard
-                title="Deployers"
-                stylus={formatNumber(stylusOnly + both)}
-                evm={formatNumber(evmDeployers)}
-              />
+              <KpiRowItem>
+                <KpiCard
+                  title="WASM Share"
+                  value={share === null ? '-' : formatShare(share)}
+                  change={
+                    trendShare === null
+                      ? undefined
+                      : `${SHARE_TREND_DAYS}d: ${formatShare(trendShare)}`
+                  }
+                />
+              </KpiRowItem>
+              <KpiRowItem>
+                <ComparisonKpiCard
+                  title="Total Contracts"
+                  stylus={formatNumber(stylusContracts)}
+                  evm={formatNumber(evmContracts)}
+                />
+              </KpiRowItem>
+              <KpiRowItem>
+                <ComparisonKpiCard
+                  title={`Deploys / day (${RECENT_DAYS}d avg)`}
+                  stylus={averages.stylus.toFixed(1)}
+                  evm={averages.evm.toFixed(1)}
+                />
+              </KpiRowItem>
+              <KpiRowItem>
+                <ComparisonKpiCard
+                  title="Deployers"
+                  stylus={formatNumber(stylusOnly + both)}
+                  evm={formatNumber(evmDeployers)}
+                />
+              </KpiRowItem>
             </>
           )}
-        </div>
+        </KpiRow>
 
         <Card>
           <CardHeader>
@@ -165,7 +181,7 @@ export function ComparisonClient({ initialData }: { initialData?: ComparisonData
                 </>
               )}
             </p>
-            <div className="grid grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
               <div>
                 <p className="text-muted-foreground">Stylus only</p>
                 <p className="text-xl font-semibold">{formatNumber(stylusOnly)}</p>
@@ -183,7 +199,7 @@ export function ComparisonClient({ initialData }: { initialData?: ComparisonData
         </Card>
 
         <Card>
-          <CardHeader className="flex items-center justify-between gap-4">
+          <CardHeader className="flex flex-wrap items-center justify-between gap-4">
             <CardTitle>Daily Deploys (logarithmic)</CardTitle>
             <PeriodToggle value={period} onChange={setPeriod} label="Daily deploys period" />
           </CardHeader>

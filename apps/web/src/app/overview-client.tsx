@@ -74,7 +74,7 @@ export function OverviewClient({ initialData }: { initialData?: OverviewData }) 
 
       {/* Daily Activations */}
       <Card>
-        <CardHeader className="flex items-center justify-between gap-4">
+        <CardHeader className="flex flex-wrap items-center justify-between gap-4">
           <CardTitle>Daily Activations</CardTitle>
           <PeriodToggle value={period} onChange={setPeriod} label="Daily activations period" />
         </CardHeader>
