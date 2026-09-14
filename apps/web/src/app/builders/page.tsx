@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql/client';
 import { GET_BUILDER_GROWTH, GET_BUILDER_STATS } from '@/lib/graphql/queries';
-import { KpiCard } from '@/components/kpi-card';
+import { KpiCard, KpiRow, KpiRowItem } from '@/components/kpi-card';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import {
   formatDay,
@@ -71,13 +71,23 @@ export default function BuildersPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <KpiCard title="Unique Deployers" value={isLoading ? '...' : uniqueDeployers} />
-        <KpiCard title="Avg Contracts/Deployer" value={isLoading ? '...' : avgContractsValue} />
-        <KpiCard title="Repeat Builders" value={isLoading ? '...' : repeatBuilders} />
-        <KpiCard title="New This Week" value={isLoading ? '...' : newThisWeek} />
-        <KpiCard title="Retention (>1 week)" value={isLoading ? '...' : retentionValue} />
-      </div>
+      <KpiRow className="sm:grid-cols-2 lg:grid-cols-5">
+        <KpiRowItem>
+          <KpiCard title="Unique Deployers" value={isLoading ? '...' : uniqueDeployers} />
+        </KpiRowItem>
+        <KpiRowItem>
+          <KpiCard title="Avg Contracts/Deployer" value={isLoading ? '...' : avgContractsValue} />
+        </KpiRowItem>
+        <KpiRowItem>
+          <KpiCard title="Repeat Builders" value={isLoading ? '...' : repeatBuilders} />
+        </KpiRowItem>
+        <KpiRowItem>
+          <KpiCard title="New This Week" value={isLoading ? '...' : newThisWeek} />
+        </KpiRowItem>
+        <KpiRowItem>
+          <KpiCard title="Retention (>1 week)" value={isLoading ? '...' : retentionValue} />
+        </KpiRowItem>
+      </KpiRow>
 
       <Card>
         <CardHeader>

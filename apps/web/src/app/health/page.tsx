@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { graphqlClient } from '@/lib/graphql/client';
 import { GET_HEALTH_METRICS } from '@/lib/graphql/queries';
-import { KpiCard } from '@/components/kpi-card';
+import { KpiCard, KpiRow, KpiRowItem } from '@/components/kpi-card';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { StatusPieChart, type StatusSlice } from '@/components/charts/status-pie-chart';
 import { ExpiryHistogram } from '@/components/charts/expiry-histogram';
@@ -76,17 +76,25 @@ export default function HealthPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          title="Reactivation Rate"
-          value={isLoading ? '...' : reactivationValue}
-          change={reactivationChange}
-          changeType={reactivationChangeType}
-        />
-        <KpiCard title="Avg Lifetime" value="-" />
-        <KpiCard title="Cached Contracts" value="-" />
-        <KpiCard title="Expiring Soon (7d)" value={isLoading ? '...' : expiringSoon} />
-      </div>
+      <KpiRow className="sm:grid-cols-2 lg:grid-cols-4">
+        <KpiRowItem>
+          <KpiCard
+            title="Reactivation Rate"
+            value={isLoading ? '...' : reactivationValue}
+            change={reactivationChange}
+            changeType={reactivationChangeType}
+          />
+        </KpiRowItem>
+        <KpiRowItem>
+          <KpiCard title="Avg Lifetime" value="-" />
+        </KpiRowItem>
+        <KpiRowItem>
+          <KpiCard title="Cached Contracts" value="-" />
+        </KpiRowItem>
+        <KpiRowItem>
+          <KpiCard title="Expiring Soon (7d)" value={isLoading ? '...' : expiringSoon} />
+        </KpiRowItem>
+      </KpiRow>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
@@ -103,7 +111,7 @@ export default function HealthPage() {
             ) : (
               <>
                 <StatusPieChart data={statusData} />
-                <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
+                <div className="mt-4 grid grid-cols-1 gap-2 text-center text-sm sm:grid-cols-3">
                   <div>
                     <p className="text-muted-foreground">Active</p>
                     <p className="font-semibold">{active}</p>

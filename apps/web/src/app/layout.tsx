@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Sidebar } from '@/components/sidebar';
+import { MobileNav } from '@/components/mobile-nav';
 import { Providers } from '@/components/providers';
 
 export const metadata: Metadata = {
@@ -14,10 +15,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // hydration, so server and client markup differ there by design.
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="flex min-h-screen">
+      <body className="flex min-h-screen flex-col lg:flex-row">
         <Providers>
+          <MobileNav />
           <Sidebar />
-          <main className="flex-1 overflow-auto p-6 lg:p-8">{children}</main>
+          <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">{children}</main>
         </Providers>
       </body>
     </html>
